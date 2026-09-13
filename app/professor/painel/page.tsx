@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import "./painel.css";
 import { Accessibility, Bell, BookOpen, Bot, CheckSquare, ChevronDown, ChevronRight, CirclePlus, Clock3, FileCheck2, FileCode2, FilePlus2, Gamepad2, House, Info, Lightbulb, MoreVertical, Printer, Search, Settings, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { createBrowserSupabaseClient } from "@/lib/supabase";
 
 const menu = [
   ["Início", House], ["Criar atividade", CirclePlus], ["Adaptar material", FileCode2],
@@ -17,6 +22,24 @@ const activities = [
 ] as const;
 
 export default function ProfessorDashboard() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace("/professor");
+        return;
+      }
+      setAuthorized(true);
+    });
+  }, [router]);
+
+  if (!authorized) {
+    return <main className="authPage"><section className="authPanel"><p>Verificando acesso...</p></section></main>;
+  }
+
   return <main className="dashboardShell">
     <header className="dashboardTopbar">
       <Link href="/" className="dashboardBrand"><span><BookOpen /></span><b>Estação <em>Acessível</em><small>Tecnologia e Programação</small></b></Link>

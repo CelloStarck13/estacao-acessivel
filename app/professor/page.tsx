@@ -3,21 +3,45 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
+import { createBrowserSupabaseClient } from "@/lib/supabase";
 
 export default function ProfessorPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
   async function requestCode(event: FormEvent) {
     event.preventDefault();
-    setMessage("Validando o e-mail institucional...");
-    const response = await fetch("/api/auth/request-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await response.json();
-    setMessage(data.message);
+    const normalizedEmail = email.trim().toLowerCase();
+    const domain = normalizedEmail.split("@")[1] ?? "";
+    const allowedDomains = ["educacao.sp.gov.br", "prof.educacao.sp.gov.br"];
+
+    if (!allowedDomains.includes(domain)) {
+      setMessage("Use um e-mail institucional da rede estadual de São Paulo.");
+      return;
+    }
+
+    setSending(true);
+    setMessage("Enviando o acesso seguro...");
+
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/professor/confirmar`,
+          shouldCreateUser: true,
+        },
+      });
+
+      setMessage(error
+        ? "Não foi possível enviar o acesso agora. Tente novamente em alguns minutos."
+        : "Acesso enviado. Abra seu e-mail institucional e clique no link recebido.");
+    } catch {
+      setMessage("O serviço de autenticação ainda não está disponível.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -30,10 +54,9 @@ export default function ProfessorPage() {
         <form onSubmit={requestCode}>
           <label htmlFor="email">E-mail institucional</label>
           <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@educacao.sp.gov.br" required />
-          <button type="submit">Enviar código de acesso</button>
+          <button type="submit" disabled={sending}>{sending ? "Enviando..." : "Enviar acesso por e-mail"}</button>
         </form>
         {message && <div className="formMessage" role="status">{message}</div>}
-        {message && !message.startsWith("Use") && <Link className="demoPanelLink" href="/professor/painel">Visualizar painel do professor</Link>}
         <small><ShieldCheck /> O código terá validade curta e funcionará apenas uma vez.</small>
       </section>
     </main>
