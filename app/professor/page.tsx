@@ -33,6 +33,7 @@ export default function ProfessorPage() {
           <button type="submit">Enviar código de acesso</button>
         </form>
         {message && <div className="formMessage" role="status">{message}</div>}
+        {message && !message.startsWith("Use") && <Link className="demoPanelLink" href="/professor/painel">Visualizar painel do professor</Link>}
         <small><ShieldCheck /> O código terá validade curta e funcionará apenas uma vez.</small>
       </section>
     </main>
