@@ -8,7 +8,7 @@ export function Header() {
       <header className="header">
         <Link className="brand" href="/">
           <span className="brandIcon"><BookOpenCheck aria-hidden="true" /></span>
-          <span><strong>Estação <em>Acessível</em></strong><small>Tecnologia e Programação</small></span>
+          <span><strong><em>DUDA</em> — Estação Acessível</strong><small>Tecnologia, Programação e Robótica</small></span>
         </Link>
         <nav aria-label="Navegação principal">
           <Link href="/professor">Professor</Link>
