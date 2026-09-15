@@ -21,11 +21,7 @@ set search_path = ''
 as $$
 begin
   insert into public.profiles (id, email, display_name)
-  values (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data ->> 'display_name', '')
-  );
+  values (new.id, new.email, coalesce(new.raw_user_meta_data ->> 'display_name', ''));
   return new;
 end;
 $$;
@@ -40,26 +36,45 @@ for each row execute function public.create_profile_for_new_user();
 alter table public.profiles enable row level security;
 
 drop policy if exists "User reads own profile" on public.profiles;
-create policy "User reads own profile"
-on public.profiles for select
-to authenticated
-using (auth.uid() = id);
+create policy "User reads own profile" on public.profiles for select to authenticated using (auth.uid() = id);
 
 drop policy if exists "User updates own profile" on public.profiles;
-create policy "User updates own profile"
-on public.profiles for update
-to authenticated
-using (auth.uid() = id)
-with check (auth.uid() = id);
+create policy "User updates own profile" on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+
+create table if not exists public.curriculum_items (
+  id uuid primary key default gen_random_uuid(),
+  component text not null,
+  school_year text not null,
+  term text not null,
+  theme text not null,
+  learning_objective text,
+  skill_reference text,
+  source_reference text,
+  source_status text not null default 'provisional_demo' check (source_status in ('provisional_demo','official')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.curriculum_items enable row level security;
+drop policy if exists "Authenticated reads curriculum items" on public.curriculum_items;
+create policy "Authenticated reads curriculum items" on public.curriculum_items for select to authenticated using (true);
 
 create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
+  curriculum_item_id uuid references public.curriculum_items(id) on delete set null,
+  creation_mode text not null default 'manual' check (creation_mode in ('automatic','manual')),
   title text not null,
   description text,
   component text,
   school_year text,
+  term text,
+  theme text,
   learning_objective text,
+  learner_profiles jsonb not null default '[]'::jsonb,
+  support_needs jsonb not null default '[]'::jsonb,
+  autonomy_level text check (autonomy_level in ('intensive','moderate','autonomous')),
+  response_modes jsonb not null default '[]'::jsonb,
+  generated_content jsonb,
   delivery_mode text not null default 'digital' check (delivery_mode in ('digital','print','both')),
   status text not null default 'draft' check (status in ('draft','published','review')),
   access_code text unique,
@@ -83,6 +98,7 @@ create table if not exists public.questions (
   unique(activity_id, position)
 );
 
+create index if not exists curriculum_items_lookup_idx on public.curriculum_items(component, school_year, term);
 create index if not exists activities_owner_id_idx on public.activities(owner_id);
 create index if not exists activities_access_code_idx on public.activities(access_code) where access_code is not null;
 create index if not exists questions_activity_id_idx on public.questions(activity_id);
@@ -101,79 +117,34 @@ $$;
 revoke execute on function public.set_updated_at() from public, anon, authenticated;
 
 drop trigger if exists activities_set_updated_at on public.activities;
-create trigger activities_set_updated_at
-before update on public.activities
-for each row execute function public.set_updated_at();
+create trigger activities_set_updated_at before update on public.activities for each row execute function public.set_updated_at();
 
 drop trigger if exists questions_set_updated_at on public.questions;
-create trigger questions_set_updated_at
-before update on public.questions
-for each row execute function public.set_updated_at();
+create trigger questions_set_updated_at before update on public.questions for each row execute function public.set_updated_at();
 
 alter table public.activities enable row level security;
 alter table public.questions enable row level security;
 
 drop policy if exists "Owners read activities" on public.activities;
-create policy "Owners read activities"
-on public.activities for select
-to authenticated
-using (auth.uid() = owner_id);
+create policy "Owners read activities" on public.activities for select to authenticated using (auth.uid() = owner_id);
 
 drop policy if exists "Owners create activities" on public.activities;
-create policy "Owners create activities"
-on public.activities for insert
-to authenticated
-with check (auth.uid() = owner_id);
+create policy "Owners create activities" on public.activities for insert to authenticated with check (auth.uid() = owner_id);
 
 drop policy if exists "Owners update activities" on public.activities;
-create policy "Owners update activities"
-on public.activities for update
-to authenticated
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
+create policy "Owners update activities" on public.activities for update to authenticated using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
 drop policy if exists "Owners delete activities" on public.activities;
-create policy "Owners delete activities"
-on public.activities for delete
-to authenticated
-using (auth.uid() = owner_id);
+create policy "Owners delete activities" on public.activities for delete to authenticated using (auth.uid() = owner_id);
 
 drop policy if exists "Owners read questions" on public.questions;
-create policy "Owners read questions"
-on public.questions for select
-to authenticated
-using (exists (
-  select 1 from public.activities a
-  where a.id = questions.activity_id and a.owner_id = auth.uid()
-));
+create policy "Owners read questions" on public.questions for select to authenticated using (exists (select 1 from public.activities a where a.id = questions.activity_id and a.owner_id = auth.uid()));
 
 drop policy if exists "Owners create questions" on public.questions;
-create policy "Owners create questions"
-on public.questions for insert
-to authenticated
-with check (exists (
-  select 1 from public.activities a
-  where a.id = questions.activity_id and a.owner_id = auth.uid()
-));
+create policy "Owners create questions" on public.questions for insert to authenticated with check (exists (select 1 from public.activities a where a.id = questions.activity_id and a.owner_id = auth.uid()));
 
 drop policy if exists "Owners update questions" on public.questions;
-create policy "Owners update questions"
-on public.questions for update
-to authenticated
-using (exists (
-  select 1 from public.activities a
-  where a.id = questions.activity_id and a.owner_id = auth.uid()
-))
-with check (exists (
-  select 1 from public.activities a
-  where a.id = questions.activity_id and a.owner_id = auth.uid()
-));
+create policy "Owners update questions" on public.questions for update to authenticated using (exists (select 1 from public.activities a where a.id = questions.activity_id and a.owner_id = auth.uid())) with check (exists (select 1 from public.activities a where a.id = questions.activity_id and a.owner_id = auth.uid()));
 
 drop policy if exists "Owners delete questions" on public.questions;
-create policy "Owners delete questions"
-on public.questions for delete
-to authenticated
-using (exists (
-  select 1 from public.activities a
-  where a.id = questions.activity_id and a.owner_id = auth.uid()
-));
+create policy "Owners delete questions" on public.questions for delete to authenticated using (exists (select 1 from public.activities a where a.id = questions.activity_id and a.owner_id = auth.uid()));
