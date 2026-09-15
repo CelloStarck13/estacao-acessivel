@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./painel.css";
-import { Accessibility, Bell, BookOpen, Bot, CheckSquare, ChevronDown, ChevronRight, CirclePlus, Clock3, FileCheck2, FileCode2, FilePlus2, Gamepad2, House, Info, Lightbulb, MoreVertical, Printer, Search, Settings, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { Accessibility, Bell, BookOpen, Bot, CheckSquare, ChevronDown, ChevronRight, CirclePlus, Clock3, FileCheck2, FileCode2, FilePlus2, Gamepad2, House, Info, Lightbulb, LogOut, MoreVertical, Printer, Search, Settings, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 
 const menu = [
@@ -24,17 +24,33 @@ const activities = [
 export default function ProfessorDashboard() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [userName, setUserName] = useState("Professor");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
-    void supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
         router.replace("/professor");
         return;
       }
+
+      const user = data.session.user;
+      setUserEmail(user.email ?? "");
+      const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+      const displayName = profile?.display_name?.trim();
+      setUserName(displayName || user.email?.split("@")[0] || "Professor");
       setAuthorized(true);
     });
   }, [router]);
+
+  const initials = useMemo(() => userName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "PR", [userName]);
+
+  async function logout() {
+    const supabase = createBrowserSupabaseClient();
+    await supabase.auth.signOut();
+    router.replace("/professor");
+  }
 
   if (!authorized) {
     return <main className="authPage"><section className="authPanel"><p>Verificando acesso...</p></section></main>;
@@ -44,7 +60,7 @@ export default function ProfessorDashboard() {
     <header className="dashboardTopbar">
       <Link href="/" className="dashboardBrand"><span><BookOpen /></span><b><strong>DUDA</strong> — Estação <em>Acessível</em><small>Tecnologia, Programação e Robótica</small></b></Link>
       <label className="dashboardSearch"><Search /><input aria-label="Buscar atividade" placeholder="Buscar atividade" /></label>
-      <div className="dashboardUser"><button aria-label="Notificações"><Bell /><i>1</i></button><span>MS</span><b>Marcelo Silva</b><ChevronDown /></div>
+      <div className="dashboardUser"><button aria-label="Notificações"><Bell /><i>1</i></button><span>{initials}</span><div className="userIdentity"><b>{userName}</b><small>{userEmail}</small></div><button className="logoutButton" onClick={logout} aria-label="Sair"><LogOut /></button></div>
     </header>
     <aside className="dashboardSidebar"><nav>{menu.map(([label, Icon], index) => {
       if (label === "Criar atividade") return <Link href="/professor/atividade/nova" key={label}><Icon />{label}</Link>;
@@ -52,9 +68,9 @@ export default function ProfessorDashboard() {
       return <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>;
     })}</nav></aside>
     <section className="dashboardMain">
-      <div className="welcomeRow"><div><h1>Olá, Marcelo!</h1><p>Crie, adapte e compartilhe atividades acessíveis.</p></div><span><ShieldCheck /> Ambiente de demonstração</span></div>
+      <div className="welcomeRow"><div><h1>Olá, {userName.split(/\s+/)[0]}!</h1><p>Crie, personalize e compartilhe atividades acessíveis.</p></div><span><ShieldCheck /> Ambiente de demonstração</span></div>
       <div className="quickActions">
-        <Link className="quickAction create" href="/professor/atividade/nova"><FilePlus2 /><span><b>Criar nova atividade</b><small>Do zero, com apoio e sugestões</small></span><ChevronRight /></Link>
+        <Link className="quickAction create" href="/professor/atividade/nova"><FilePlus2 /><span><b>Criar nova atividade</b><small>Selecione o currículo e personalize para o estudante</small></span><ChevronRight /></Link>
         <button className="quickAction adapt"><FileCode2 /><span><b>Adaptar material existente</b><small>Transforme conteúdos em atividades acessíveis</small></span><ChevronRight /></button>
         <Link className="quickAction library" href="/biblioteca"><BookOpen /><span><b>Abrir biblioteca</b><small>Explore atividades prontas por categoria</small></span><ChevronRight /></Link>
       </div>
