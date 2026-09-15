@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Estação Acessível",
-  description: "Atividades acessíveis de Tecnologia e Programação",
+  title: "DUDA — Estação Acessível",
+  description: "Atividades acessíveis de Tecnologia, Programação e Robótica — uma plataforma inspirada por Maria Eduarda.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
