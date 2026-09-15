@@ -42,7 +42,7 @@ export default function ProfessorDashboard() {
 
   return <main className="dashboardShell">
     <header className="dashboardTopbar">
-      <Link href="/" className="dashboardBrand"><span><BookOpen /></span><b>Estação <em>Acessível</em><small>Tecnologia e Programação</small></b></Link>
+      <Link href="/" className="dashboardBrand"><span><BookOpen /></span><b><strong>DUDA</strong> — Estação <em>Acessível</em><small>Tecnologia, Programação e Robótica</small></b></Link>
       <label className="dashboardSearch"><Search /><input aria-label="Buscar atividade" placeholder="Buscar atividade" /></label>
       <div className="dashboardUser"><button aria-label="Notificações"><Bell /><i>1</i></button><span>MS</span><b>Marcelo Silva</b><ChevronDown /></div>
     </header>
@@ -61,6 +61,6 @@ export default function ProfessorDashboard() {
         <h3>{title}</h3><small>{meta}</small><p>{text}</p><div className="activityButtons"><button>Abrir</button><button><FileCheck2 /> Gerar PDF</button></div>
       </article>)}</div>
     </section>
-    <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>Versão preliminar • Material pedagógico independente</footer></aside>
+    <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>DUDA — Estação Acessível • Versão preliminar • Material pedagógico independente</footer></aside>
   </main>;
 }
