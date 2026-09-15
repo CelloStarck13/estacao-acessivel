@@ -1,14 +1,28 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 
 export default function ProfessorPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.replace("/professor/painel");
+        return;
+      }
+      setCheckingSession(false);
+    });
+  }, [router]);
 
   async function requestCode(event: FormEvent) {
     event.preventDefault();
@@ -53,6 +67,10 @@ export default function ProfessorPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (checkingSession) {
+    return <main className="authPage"><section className="authPanel"><p>Verificando seu acesso...</p></section></main>;
   }
 
   return (
