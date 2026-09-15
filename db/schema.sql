@@ -58,10 +58,29 @@ alter table public.curriculum_items enable row level security;
 drop policy if exists "Authenticated reads curriculum items" on public.curriculum_items;
 create policy "Authenticated reads curriculum items" on public.curriculum_items for select to authenticated using (true);
 
+create table if not exists public.bncc_computacao_skills (
+  id uuid primary key default gen_random_uuid(),
+  stage text not null,
+  school_year text not null,
+  axis text,
+  competency_reference text,
+  skill_code text not null unique,
+  skill_text text not null,
+  source_page integer,
+  source_name text not null,
+  source_status text not null default 'official' check (source_status = 'official'),
+  created_at timestamptz not null default now()
+);
+
+alter table public.bncc_computacao_skills enable row level security;
+drop policy if exists "Authenticated users read BNCC skills" on public.bncc_computacao_skills;
+create policy "Authenticated users read BNCC skills" on public.bncc_computacao_skills for select to authenticated using (true);
+
 create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   curriculum_item_id uuid references public.curriculum_items(id) on delete set null,
+  bncc_skill_id uuid references public.bncc_computacao_skills(id) on delete set null,
   creation_mode text not null default 'manual' check (creation_mode in ('automatic','manual')),
   title text not null,
   description text,
@@ -99,7 +118,10 @@ create table if not exists public.questions (
 );
 
 create index if not exists curriculum_items_lookup_idx on public.curriculum_items(component, school_year, term);
+create index if not exists bncc_computacao_school_year_idx on public.bncc_computacao_skills(school_year);
+create index if not exists bncc_computacao_axis_idx on public.bncc_computacao_skills(axis);
 create index if not exists activities_owner_id_idx on public.activities(owner_id);
+create index if not exists activities_bncc_skill_id_idx on public.activities(bncc_skill_id);
 create index if not exists activities_access_code_idx on public.activities(access_code) where access_code is not null;
 create index if not exists questions_activity_id_idx on public.questions(activity_id);
 
