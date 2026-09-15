@@ -27,12 +27,14 @@ export default function NovaAtividadePage() {
 
   async function saveActivity(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+
     setSaving(true);
     setMessage("Salvando atividade...");
     setSaved(false);
 
     try {
-      const form = new FormData(event.currentTarget);
       const supabase = createBrowserSupabaseClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
@@ -61,7 +63,7 @@ export default function NovaAtividadePage() {
         return;
       }
 
-      event.currentTarget.reset();
+      formElement.reset();
       setSaved(true);
       setMessage("Atividade salva como rascunho no DUDA.");
     } catch {
