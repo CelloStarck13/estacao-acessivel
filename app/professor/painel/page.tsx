@@ -46,11 +46,15 @@ export default function ProfessorDashboard() {
       <label className="dashboardSearch"><Search /><input aria-label="Buscar atividade" placeholder="Buscar atividade" /></label>
       <div className="dashboardUser"><button aria-label="Notificações"><Bell /><i>1</i></button><span>MS</span><b>Marcelo Silva</b><ChevronDown /></div>
     </header>
-    <aside className="dashboardSidebar"><nav>{menu.map(([label, Icon], index) => label === "Biblioteca" ? <Link href="/biblioteca" key={label}><Icon />{label}</Link> : <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>)}</nav></aside>
+    <aside className="dashboardSidebar"><nav>{menu.map(([label, Icon], index) => {
+      if (label === "Criar atividade") return <Link href="/professor/atividade/nova" key={label}><Icon />{label}</Link>;
+      if (label === "Biblioteca") return <Link href="/biblioteca" key={label}><Icon />{label}</Link>;
+      return <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>;
+    })}</nav></aside>
     <section className="dashboardMain">
       <div className="welcomeRow"><div><h1>Olá, Marcelo!</h1><p>Crie, adapte e compartilhe atividades acessíveis.</p></div><span><ShieldCheck /> Ambiente de demonstração</span></div>
       <div className="quickActions">
-        <button className="quickAction create"><FilePlus2 /><span><b>Criar nova atividade</b><small>Do zero, com apoio e sugestões</small></span><ChevronRight /></button>
+        <Link className="quickAction create" href="/professor/atividade/nova"><FilePlus2 /><span><b>Criar nova atividade</b><small>Do zero, com apoio e sugestões</small></span><ChevronRight /></Link>
         <button className="quickAction adapt"><FileCode2 /><span><b>Adaptar material existente</b><small>Transforme conteúdos em atividades acessíveis</small></span><ChevronRight /></button>
         <Link className="quickAction library" href="/biblioteca"><BookOpen /><span><b>Abrir biblioteca</b><small>Explore atividades prontas por categoria</small></span><ChevronRight /></Link>
       </div>
