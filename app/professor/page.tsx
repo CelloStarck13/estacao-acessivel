@@ -34,9 +34,20 @@ export default function ProfessorPage() {
         },
       });
 
-      setMessage(error
-        ? "Não foi possível enviar o acesso agora. Tente novamente em alguns minutos."
-        : "Acesso enviado. Abra seu e-mail institucional e clique no link recebido.");
+      if (!error) {
+        setMessage("Acesso enviado. Abra seu e-mail institucional e clique no link recebido.");
+        return;
+      }
+
+      const errorText = error.message.toLowerCase();
+
+      if (error.status === 429 || errorText.includes("rate limit") || errorText.includes("too many requests")) {
+        setMessage("Muitas tentativas de acesso foram realizadas. Aguarde alguns minutos e tente novamente.");
+      } else if (errorText.includes("email address not authorized") || errorText.includes("not authorized")) {
+        setMessage("Este endereço ainda não está liberado pelo serviço de e-mail de testes. O envio institucional da plataforma está sendo configurado.");
+      } else {
+        setMessage("Não foi possível enviar o acesso agora. Tente novamente em alguns minutos.");
+      }
     } catch {
       setMessage("O serviço de autenticação ainda não está disponível.");
     } finally {
