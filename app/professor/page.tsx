@@ -50,14 +50,14 @@ export default function ProfessorPage() {
         <Link className="back" href="/"><ArrowLeft /> Voltar</Link>
         <span className="authIcon"><Mail /></span>
         <h1>Área do professor</h1>
-        <p>Informe seu e-mail institucional. Enviaremos um código temporário para confirmar o acesso.</p>
+        <p>Informe seu e-mail institucional. Enviaremos um link seguro para confirmar o acesso.</p>
         <form onSubmit={requestCode}>
           <label htmlFor="email">E-mail institucional</label>
           <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@educacao.sp.gov.br" required />
           <button type="submit" disabled={sending}>{sending ? "Enviando..." : "Enviar acesso por e-mail"}</button>
         </form>
         {message && <div className="formMessage" role="status">{message}</div>}
-        <small><ShieldCheck /> O código terá validade curta e funcionará apenas uma vez.</small>
+        <small><ShieldCheck /> O link terá validade curta e funcionará apenas uma vez.</small>
       </section>
     </main>
   );
