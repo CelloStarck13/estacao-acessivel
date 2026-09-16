@@ -1,6 +1,30 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, KeyRound, QrCode } from "lucide-react";
 
 export default function EstudantePage() {
-  return <main className="authPage"><section className="authPanel"><Link className="back" href="/"><ArrowLeft /> Voltar</Link><span className="authIcon"><KeyRound /></span><h1>Acessar atividade</h1><p>Digite o código fornecido pelo professor.</p><form><label htmlFor="codigo">Código da atividade</label><input id="codigo" placeholder="Exemplo: TEC8-2046" required /><button type="submit">Abrir atividade</button></form></section></main>;
+  const router = useRouter();
+  const [code, setCode] = useState("");
+
+  function openActivity(event: FormEvent) {
+    event.preventDefault();
+    const normalized = code.trim().toUpperCase();
+    if (normalized) router.push(`/estudante/atividade/${encodeURIComponent(normalized)}`);
+  }
+
+  return <main className="authPage"><section className="authPanel">
+    <Link className="back" href="/"><ArrowLeft/> Voltar</Link>
+    <span className="authIcon"><KeyRound/></span>
+    <h1>Acessar atividade</h1>
+    <p>Use o link ou QR Code entregue pelo professor. Se preferir, digite o código curto.</p>
+    <form onSubmit={openActivity}>
+      <label htmlFor="codigo">Código da atividade</label>
+      <input id="codigo" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Exemplo: ABC-2046" autoCapitalize="characters" required/>
+      <button type="submit">Abrir atividade</button>
+    </form>
+    <small><QrCode size={15}/> O QR Code abre esta atividade diretamente, sem e-mail e sem cadastro.</small>
+  </section></main>;
 }
