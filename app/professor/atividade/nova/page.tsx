@@ -229,6 +229,8 @@ export default function NovaAtividadePage() {
           question_type: question.question_type,
           options: question.options ?? [],
           correct_answer: question.correct_answer ?? null,
+          accessibility_support: question.accessibility_support ?? null,
+          points: question.points ?? 1,
         }));
         const { error: questionError } = await supabase.from("questions").insert(questionRows);
         if (questionError) {
