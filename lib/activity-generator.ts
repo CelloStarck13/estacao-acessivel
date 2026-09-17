@@ -3,9 +3,10 @@ export type GeneratedQuestion = {
   question_type: "open_text" | "multiple_choice" | "true_false" | "instruction";
   options?: string[]; correct_answer?: string | boolean | null;
   accessibility_support?: string | null; points?: number;
+  media_url?: string | null; media_alt?: string | null; media_caption?: string | null;
 };
-export type GeneratedActivity = { title: string; learningObjective: string; description: string; instructions: string[]; supportsApplied: string[]; responseGuidance: string[]; teacherNotes: string[]; assessment: string[]; questions: GeneratedQuestion[] };
-type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; supportNeeds: string[]; autonomyLevel: string; responseModes: string[] };
+export type GeneratedActivity = { title: string; learningObjective: string; description: string; instructions: string[]; supportsApplied: string[]; responseGuidance: string[]; teacherNotes: string[]; assessment: string[]; questions: GeneratedQuestion[]; sourceUnit?: GeneratorInput["sourceUnit"] };
+type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; supportNeeds: string[]; autonomyLevel: string; responseModes: string[]; sourceUnit?: { materialKey: string; sourceName: string; teacherMaterials: Array<{label:string;url:string}>; studentMaterials: Array<{label:string;url:string}> } | null };
 
 const profileSupportMap: Record<string, string[]> = {
   TEA: ["linguagem direta e literal", "rotina previsível", "uma ação por etapa", "redução de ambiguidades"],
@@ -39,13 +40,13 @@ function questionSupport(input: GeneratorInput) {
 function cultureDigitalQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
   if (/9º/.test(input.schoolYear)) return [
-    { position: 1, question_type: "instruction", prompt: "DESAFIO — No grupo da turma apareceu a mensagem: ‘A escola cancelou as aulas amanhã. Compartilhe agora!’. Ela não informa autor, data, fonte oficial nem link. Sua missão é decidir o que fazer antes de repassar a informação.", correct_answer: null, accessibility_support: `${support}; separar visualmente mensagem, pistas e ação`, points: 0 },
+    { position: 1, question_type: "instruction", prompt: "DESAFIO — No grupo da turma apareceu a mensagem: ‘A escola cancelou as aulas amanhã. Compartilhe agora!’. Ela não informa autor, data, fonte oficial nem link. Sua missão é decidir o que fazer antes de repassar a informação.", correct_answer: null, accessibility_support: `${support}; separar visualmente mensagem, pistas e ação`, points: 0, media_url: "/activity-media/verificar-informacao.svg", media_alt: "Comparação entre uma mensagem sem fonte e uma informação confirmada por fonte oficial", media_caption: "Observe os sinais de confiabilidade antes de compartilhar." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual ação verifica a confiabilidade da mensagem antes do compartilhamento?", options: ["Consultar o site oficial da escola e conferir autor e data", "Repassar porque foi enviada por um colega", "Acreditar porque a frase parece urgente", "Compartilhar primeiro e verificar depois"], correct_answer: "Consultar o site oficial da escola e conferir autor e data", accessibility_support: support, points: 1 },
     { position: 3, question_type: "multiple_choice", prompt: "Qual conjunto reúne sinais de uma informação mais confiável?", options: ["Autor identificado, data, fonte verificável e confirmação oficial", "Muitas letras maiúsculas e pedido de urgência", "Imagem chamativa e muitos compartilhamentos", "Mensagem curta enviada por pessoa desconhecida"], correct_answer: "Autor identificado, data, fonte verificável e confirmação oficial", accessibility_support: support, points: 1 },
     { position: 4, question_type: "open_text", prompt: "Escreva uma resposta curta para o grupo explicando por que a mensagem não deve ser compartilhada antes da verificação. Você pode usar: fonte, autor, data e confirmação.", correct_answer: null, accessibility_support: `${support}; aceitar resposta curta, palavras-chave ou registro mediado em Libras`, points: 1 },
   ];
   return [
-    { position: 1, question_type: "instruction", prompt: "DESAFIO — Uma pessoa desconhecida pede seu endereço e sua senha de jogo em troca de um prêmio. Escolha uma atitude segura.", correct_answer: null, accessibility_support: support, points: 0 },
+    { position: 1, question_type: "instruction", prompt: "DESAFIO — Uma pessoa desconhecida pede seu endereço e sua senha de jogo em troca de um prêmio. Escolha uma atitude segura.", correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/seguranca-digital.svg", media_alt: "Escudo protegendo senha e dados pessoais de uma mensagem desconhecida", media_caption: "Dados pessoais e senhas devem ser protegidos." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual é a atitude mais segura?", options: ["Não responder, não enviar dados e pedir ajuda a um adulto", "Enviar apenas a senha", "Responder para descobrir quem enviou", "Publicar o endereço no grupo"], correct_answer: "Não responder, não enviar dados e pedir ajuda a um adulto", accessibility_support: support, points: 1 },
     { position: 3, question_type: "open_text", prompt: "Indique uma informação pessoal que não deve ser enviada a desconhecidos na internet.", correct_answer: null, accessibility_support: support, points: 1 },
   ];
@@ -54,26 +55,45 @@ function cultureDigitalQuestions(input: GeneratorInput): GeneratedQuestion[] {
 function mediaQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
   return [
-    { position: 1, question_type: "instruction", prompt: "DESAFIO — A turma precisa divulgar uma campanha de uso responsável do celular. O cartaz atual tem texto longo, letras pequenas e não informa público, objetivo nem ação esperada. Sua missão é melhorar a comunicação.", correct_answer: null, accessibility_support: `${support}; apresentar o cartaz em blocos: público, mensagem e ação`, points: 0 },
+    { position: 1, question_type: "instruction", prompt: "DESAFIO — A turma precisa divulgar uma campanha de uso responsável do celular. O cartaz atual tem texto longo, letras pequenas e não informa público, objetivo nem ação esperada. Sua missão é melhorar a comunicação.", correct_answer: null, accessibility_support: `${support}; apresentar o cartaz em blocos: público, mensagem e ação`, points: 0, media_url: "/activity-media/comunicacao-acessivel.svg", media_alt: "Cartaz organizado em título, imagem, mensagem curta e chamada para ação", media_caption: "Uma comunicação acessível organiza as informações essenciais." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual versão comunica melhor a campanha?", options: ["Título curto, imagem relacionada, texto legível e ação clara", "Texto comprido, letras pequenas e nenhuma orientação", "Muitas cores, sem título e sem público definido", "Somente uma imagem, sem descrição ou mensagem"], correct_answer: "Título curto, imagem relacionada, texto legível e ação clara", accessibility_support: support, points: 1 },
     { position: 3, question_type: "open_text", prompt: "Crie uma frase curta para a campanha. Ela deve dizer ao público qual atitude tomar.", correct_answer: null, accessibility_support: `${support}; aceitar digitação, seleção de palavras ou construção mediada`, points: 1 },
   ];
 }
 
 function algorithmQuestions(input: GeneratorInput): GeneratedQuestion[] {
-  const support = questionSupport(input); const advanced = /9º|série EM/.test(input.schoolYear);
-  const context = advanced ? "um aplicativo que verifica se uma senha tem pelo menos 8 caracteres" : "um robô que deve sair da entrada e chegar à mesa";
+  const support = questionSupport(input); const theme = input.theme.toLowerCase();
+  const context = theme.includes("python") ? "um programa em Python que recebe dados, processa uma regra e apresenta um resultado" : theme.includes("recurs") || theme.includes("repet") || theme.includes("laço") ? "um desenho que repete um padrão e altera tamanho ou posição a cada etapa" : theme.includes("lista") || theme.includes("ordena") ? "uma lista de valores que precisa ser organizada e verificada" : theme.includes("p5") || theme.includes("arte") || theme.includes("cores") ? "uma composição digital interativa que reage à posição do ponteiro" : "uma solução computacional com entrada, processamento e saída";
   return [
-    { position: 1, question_type: "instruction", prompt: `DESAFIO — Planeje as instruções para ${context}. Identifique entrada, decisão e resultado esperado.`, correct_answer: null, accessibility_support: support, points: 0 },
+    { position: 1, question_type: "instruction", prompt: `DESAFIO — Planeje as instruções para ${context}. Identifique entrada, decisão e resultado esperado.`, correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/fluxo-algoritmo.svg", media_alt: "Fluxo visual com início, entrada, decisão e resultado", media_caption: "Organize o problema em uma sequência que possa ser testada." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual estratégia produz um algoritmo que pode ser testado?", options: ["Escrever passos em ordem, executar e corrigir o ponto de erro", "Dar todas as ordens ao mesmo tempo", "Mudar os passos sem registrar", "Ignorar o resultado do teste"], correct_answer: "Escrever passos em ordem, executar e corrigir o ponto de erro", accessibility_support: support, points: 1 },
     { position: 3, question_type: "open_text", prompt: "Registre uma sequência curta de passos para resolver o desafio e indique o que deve acontecer ao final.", correct_answer: null, accessibility_support: support, points: 2 },
+  ];
+}
+
+function dataQuestions(input: GeneratorInput): GeneratedQuestion[] {
+  const support = questionSupport(input);
+  const subject = input.theme.toLowerCase().includes("tela") ? "tempo diário de uso de telas" : input.theme.toLowerCase().includes("acessibilidade") ? "condições de acessibilidade da comunidade" : "dados coletados pela turma";
+  return [
+    { position: 1, question_type: "instruction", prompt: `INVESTIGAÇÃO — A turma reuniu uma planilha sobre ${subject}. Antes de concluir, é preciso conferir os dados, escolher uma representação adequada e explicar o que ela mostra.`, correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/leitura-dados.svg", media_alt: "Tabela simples transformada em gráfico de barras com categorias identificadas", media_caption: "Dados organizados ajudam a comparar valores e reconhecer padrões." },
+    { position: 2, question_type: "multiple_choice", prompt: "Qual procedimento torna a análise mais confiável?", options: ["Conferir os dados, identificar categorias e comparar os valores", "Escolher apenas os valores que confirmam uma opinião", "Apagar valores diferentes sem verificar", "Criar uma conclusão antes de observar a planilha"], correct_answer: "Conferir os dados, identificar categorias e comparar os valores", accessibility_support: support, points: 1 },
+    { position: 3, question_type: "open_text", prompt: "Registre uma comparação que poderia ser feita com esses dados e explique qual informação ela ajudaria a compreender.", correct_answer: null, accessibility_support: `${support}; aceitar frase curta, palavras-chave ou resposta mediada`, points: 2 },
+  ];
+}
+
+function digitalToolQuestions(input: GeneratorInput): GeneratedQuestion[] {
+  const support = questionSupport(input);
+  return [
+    { position: 1, question_type: "instruction", prompt: `TAREFA PRÁTICA — Na unidade “${input.theme}”, organize um produto digital legível. Identifique a ferramenta necessária, execute uma alteração e confira o resultado antes de salvar.`, correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/comunicacao-acessivel.svg", media_alt: "Documento digital com título, imagem e texto organizados", media_caption: "Organize o conteúdo para facilitar leitura e compreensão." },
+    { position: 2, question_type: "multiple_choice", prompt: "Qual sequência ajuda a realizar a tarefa com segurança?", options: ["Selecionar a ferramenta, aplicar a alteração, conferir e salvar", "Clicar em vários comandos sem observar", "Fechar antes de conferir", "Apagar o conteúdo original sem necessidade"], correct_answer: "Selecionar a ferramenta, aplicar a alteração, conferir e salvar", accessibility_support: support, points: 1 },
+    { position: 3, question_type: "open_text", prompt: "Indique uma alteração que melhora a leitura ou a organização do produto digital.", correct_answer: null, accessibility_support: support, points: 1 },
   ];
 }
 
 function roboticsQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
   return [
-    { position: 1, question_type: "instruction", prompt: "DESAFIO MAKER — Um carrinho robótico deve parar antes de tocar um obstáculo. Considere sensor, distância de segurança, movimento e teste.", correct_answer: null, accessibility_support: support, points: 0 },
+    { position: 1, question_type: "instruction", prompt: "DESAFIO MAKER — Um carrinho robótico deve parar antes de tocar um obstáculo. Considere sensor, distância de segurança, movimento e teste.", correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/robo-sensor.svg", media_alt: "Carrinho robótico usando um sensor para identificar um obstáculo à frente", media_caption: "O sensor fornece a entrada usada para decidir quando parar." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual lógica permite ao carrinho parar com segurança?", options: ["Se a distância for menor que o limite, parar os motores", "Se detectar obstáculo, aumentar a velocidade", "Manter os motores ligados em qualquer situação", "Desligar o sensor durante o percurso"], correct_answer: "Se a distância for menor que o limite, parar os motores", accessibility_support: support, points: 1 },
     { position: 3, question_type: "open_text", prompt: "Indique um teste que você faria para saber se o carrinho para na distância correta.", correct_answer: null, accessibility_support: support, points: 1 },
   ];
@@ -81,8 +101,10 @@ function roboticsQuestions(input: GeneratorInput): GeneratedQuestion[] {
 
 function questionsFor(input: GeneratorInput) {
   const normalized = `${input.theme} ${input.component}`.toLowerCase();
-  if (normalized.includes("cultura digital") || normalized.includes("cidadania")) return cultureDigitalQuestions(input);
-  if (normalized.includes("mídia") || normalized.includes("comunica")) return mediaQuestions(input);
+  if (normalized.includes("cultura digital") || normalized.includes("cidadania") || normalized.includes("segurança") || normalized.includes("proteção digital")) return cultureDigitalQuestions(input);
+  if (normalized.includes("midi") || normalized.includes("comunica") || normalized.includes("informação") || normalized.includes("redes sociais") || normalized.includes("autor ia")) return mediaQuestions(input);
+  if (normalized.includes("planilha") || normalized.includes("ciência de dados") || normalized.includes("análise de dados") || normalized.includes("simulação")) return dataQuestions(input);
+  if (normalized.includes("edição de texto") || normalized.includes("mouse") || normalized.includes("teclado") || normalized.includes("primeiro flashcard")) return digitalToolQuestions(input);
   if (normalized.includes("robó") || normalized.includes("maker") || normalized.includes("automação")) return roboticsQuestions(input);
   return algorithmQuestions(input);
 }
@@ -97,8 +119,9 @@ export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity
     instructions: ["Apresentar o objetivo antes do desafio.", "Mostrar uma etapa por vez quando esse apoio estiver selecionado.", "Confirmar a compreensão sem fornecer a resposta.", "Permitir revisão antes do envio."],
     supportsApplied,
     responseGuidance: input.responseModes.length ? input.responseModes.map((mode) => `permitir resposta por ${mode.toLowerCase()}`) : ["permitir resposta por seleção ou texto curto"],
-    teacherNotes: ["O perfil orienta o acesso e não aparece para o estudante.", "O objetivo curricular é preservado; mudam linguagem, mediação e forma de resposta.", autonomyMap[input.autonomyLevel] ?? autonomyMap.moderate],
+    teacherNotes: ["O perfil orienta o acesso e não aparece para o estudante.", "O objetivo curricular é preservado; mudam linguagem, mediação e forma de resposta.", autonomyMap[input.autonomyLevel] ?? autonomyMap.moderate, input.sourceUnit ? `Referência: ${input.sourceUnit.sourceName} — ${input.theme}.` : "Atividade sem unidade oficial vinculada; revisar antes de publicar."],
     assessment: ["Compreende a situação-problema.", "Seleciona evidências relevantes.", "Toma decisão coerente com o objetivo.", "Comunica a resposta pela modalidade escolhida."],
     questions: questionsFor(input),
+    ...(input.sourceUnit ? { sourceUnit: input.sourceUnit } : {}),
   };
 }
