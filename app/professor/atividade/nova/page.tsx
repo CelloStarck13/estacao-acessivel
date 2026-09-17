@@ -15,7 +15,11 @@ type CurriculumItem = {
   term: string;
   theme: string;
   learning_objective: string | null;
-  source_status: "provisional_demo" | "official";
+  source_status: "official";
+  material_key: string;
+  source_name: string;
+  teacher_materials: Array<{ label: string; url: string }>;
+  student_materials: Array<{ label: string; url: string }>;
 };
 
 type CreationMode = "automatic" | "manual";
@@ -99,13 +103,24 @@ export default function NovaAtividadePage() {
       }
       setAuthorized(true);
       const { data: items } = await supabase
-        .from("curriculum_items")
-        .select("id,component,school_year,term,theme,learning_objective,source_status")
-        .order("component")
+        .from("curriculum_material_units")
+        .select("material_key,school_year,term,unit,teacher_materials,student_materials,source_name,source_status")
         .order("school_year")
         .order("term")
-        .order("theme");
-      setCatalog((items ?? []) as CurriculumItem[]);
+        .order("unit");
+      setCatalog((items ?? []).filter((item) => item.source_status === "official").map((item) => ({
+        id: item.material_key,
+        material_key: item.material_key,
+        component: item.school_year.includes("série") ? "Programação" : "Tecnologia e Inovação",
+        school_year: item.school_year,
+        term: `${item.term} bimestre`,
+        theme: item.unit,
+        learning_objective: null,
+        source_status: "official",
+        source_name: item.source_name,
+        teacher_materials: item.teacher_materials ?? [],
+        student_materials: item.student_materials ?? [],
+      })) as CurriculumItem[]);
     });
   }, [router]);
 
@@ -173,12 +188,17 @@ export default function NovaAtividadePage() {
           supportNeeds,
           autonomyLevel,
           responseModes,
+          sourceUnit: {
+            materialKey: selectedCurriculum.material_key,
+            sourceName: selectedCurriculum.source_name,
+            teacherMaterials: selectedCurriculum.teacher_materials,
+            studentMaterials: selectedCurriculum.student_materials,
+          },
         });
 
         payload = {
           owner_id: user.id,
           creation_mode: "automatic",
-          curriculum_item_id: selectedCurriculum.id,
           title: generated.title,
           description: generated.description,
           component,
@@ -231,6 +251,9 @@ export default function NovaAtividadePage() {
           correct_answer: question.correct_answer ?? null,
           accessibility_support: question.accessibility_support ?? null,
           points: question.points ?? 1,
+          media_url: question.media_url ?? null,
+          media_alt: question.media_alt ?? null,
+          media_caption: question.media_caption ?? null,
         }));
         const { error: questionError } = await supabase.from("questions").insert(questionRows);
         if (questionError) {
@@ -281,7 +304,7 @@ export default function NovaAtividadePage() {
                   <label>Bimestre<select value={term} onChange={(e) => setTerm(e.target.value)}>{terms.map((value) => <option key={value}>{value}</option>)}</select></label>
                   <label>Tema / objeto<select value={theme} onChange={(e) => setTheme(e.target.value)}>{themes.map((item) => <option key={item.id}>{item.theme}</option>)}</select></label>
                 </div>
-                {selectedCurriculum && <div className="curriculumPreview"><b>Objetivo relacionado</b><p>{selectedCurriculum.learning_objective}</p><small className={selectedCurriculum.source_status === "official" ? "official" : "demo"}>{selectedCurriculum.source_status === "official" ? "Fonte curricular oficial" : "Catálogo demonstrativo — será substituído pela indexação do acervo curricular já enviado"}</small></div>}
+                {selectedCurriculum && <div className="curriculumPreview"><b>Unidade oficial selecionada</b><p>{selectedCurriculum.theme}</p><small className="official">{selectedCurriculum.source_name} · {selectedCurriculum.teacher_materials.length} referência(s) do professor · {selectedCurriculum.student_materials.length} do estudante</small></div>}
               </section>
             ) : (
               <section className="formSection">
