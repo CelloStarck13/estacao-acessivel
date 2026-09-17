@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Contrast, Minus, Plus, Volume2 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 import "./student-activity.css";
 
-type Question = { id: string; position: number; prompt: string; question_type: "instruction"|"open_text"|"multiple_choice"|"true_false"; options: string[]; accessibility_support: string|null; points: number };
+type Question = { id: string; position: number; prompt: string; question_type: "instruction"|"open_text"|"multiple_choice"|"true_false"; options: string[]; accessibility_support: string|null; points: number; media_url: string|null; media_alt: string|null; media_caption: string|null };
 type Activity = { id: string; title: string; description: string|null; component: string|null; school_year: string|null; learning_objective: string|null; support_needs: string[]; questions: Question[] };
 
 export default function StudentActivityPage() {
@@ -54,6 +55,7 @@ export default function StudentActivityPage() {
     <form className="studentForm" onSubmit={submit}>
       <label className="aliasField">Como o professor identificará esta resposta? <span>(opcional)</span><input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Nome, iniciais ou número combinado"/></label>
       {activity.questions.map((q) => <fieldset key={q.id} className="studentQuestion"><legend><b>{q.position}</b>{q.prompt}<button type="button" onClick={() => read(q.prompt)} aria-label="Ouvir questão"><Volume2/></button></legend>{q.accessibility_support && <p className="supportHint">Apoio: {q.accessibility_support}</p>}
+        {q.media_url && q.media_alt && <figure className="questionMedia"><Image src={q.media_url} alt={q.media_alt} width={800} height={420}/>{q.media_caption && <figcaption>{q.media_caption}</figcaption>}</figure>}
         {q.question_type === "instruction" ? <p>Leia ou ouça esta orientação antes de continuar.</p> : q.question_type === "open_text" ? <textarea rows={4} value={String(answers[q.id] ?? "")} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })} aria-label="Sua resposta"/> : <div className="answerOptions">{q.options.map((option) => { const value = q.question_type === "true_false" ? option === "Verdadeiro" : option; return <label key={option}><input type="radio" name={q.id} checked={answers[q.id] === value} onChange={() => setAnswers({ ...answers, [q.id]: value })}/><span>{option}</span></label>; })}</div>}
       </fieldset>)}
       {error && <p className="submitError" role="alert">{error}</p>}<button className="submitActivity" type="submit">Enviar respostas</button>
