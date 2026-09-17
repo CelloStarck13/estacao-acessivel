@@ -20,6 +20,15 @@ type CurriculumItem = {
   source_name: string;
   teacher_materials: Array<{ label: string; url: string }>;
   student_materials: Array<{ label: string; url: string }>;
+  domain: string;
+  pedagogical_focus: string;
+  learning_objectives: string[];
+  core_concepts: string[];
+  authentic_contexts: string[];
+  activity_patterns: string[];
+  assessment_evidence: string[];
+  misconception_alerts: string[];
+  fidelity_status: "extracted" | "reviewed";
 };
 
 type CreationMode = "automatic" | "manual";
@@ -103,24 +112,36 @@ export default function NovaAtividadePage() {
       }
       setAuthorized(true);
       const { data: items } = await supabase
-        .from("curriculum_material_units")
-        .select("material_key,school_year,term,unit,teacher_materials,student_materials,source_name,source_status")
+        .from("pedagogical_units")
+        .select("material_key,component,school_year,term,unit_title,domain,pedagogical_focus,learning_objectives,core_concepts,authentic_contexts,activity_patterns,assessment_evidence,misconception_alerts,source_documents,fidelity_status,ready_for_generation")
+        .eq("ready_for_generation", true)
         .order("school_year")
         .order("term")
-        .order("unit");
-      setCatalog((items ?? []).filter((item) => item.source_status === "official").map((item) => ({
+        .order("unit_title");
+      setCatalog((items ?? []).map((item) => {
+        const documents = (item.source_documents ?? []) as Array<{ label: string; url: string }>;
+        return ({
         id: item.material_key,
         material_key: item.material_key,
-        component: item.school_year.includes("série") ? "Programação" : "Tecnologia e Inovação",
+        component: item.component,
         school_year: item.school_year,
-        term: `${item.term} bimestre`,
-        theme: item.unit,
-        learning_objective: null,
+        term: item.term,
+        theme: item.unit_title,
+        learning_objective: item.learning_objectives?.[0] ?? null,
         source_status: "official",
-        source_name: item.source_name,
-        teacher_materials: item.teacher_materials ?? [],
-        student_materials: item.student_materials ?? [],
-      })) as CurriculumItem[]);
+        source_name: "Materiais oficiais SEDUC 2026 — conteúdo extraído",
+        teacher_materials: documents.filter((document) => /professor|guia|gabarito/i.test(document.label)),
+        student_materials: documents.filter((document) => !/professor|guia|gabarito/i.test(document.label)),
+        domain: item.domain,
+        pedagogical_focus: item.pedagogical_focus,
+        learning_objectives: item.learning_objectives ?? [],
+        core_concepts: item.core_concepts ?? [],
+        authentic_contexts: item.authentic_contexts ?? [],
+        activity_patterns: item.activity_patterns ?? [],
+        assessment_evidence: item.assessment_evidence ?? [],
+        misconception_alerts: item.misconception_alerts ?? [],
+        fidelity_status: item.fidelity_status,
+      });}) as CurriculumItem[]);
     });
   }, [router]);
 
@@ -193,6 +214,15 @@ export default function NovaAtividadePage() {
             sourceName: selectedCurriculum.source_name,
             teacherMaterials: selectedCurriculum.teacher_materials,
             studentMaterials: selectedCurriculum.student_materials,
+            domain: selectedCurriculum.domain,
+            pedagogicalFocus: selectedCurriculum.pedagogical_focus,
+            learningObjectives: selectedCurriculum.learning_objectives,
+            coreConcepts: selectedCurriculum.core_concepts,
+            authenticContexts: selectedCurriculum.authentic_contexts,
+            activityPatterns: selectedCurriculum.activity_patterns,
+            assessmentEvidence: selectedCurriculum.assessment_evidence,
+            misconceptionAlerts: selectedCurriculum.misconception_alerts,
+            fidelityStatus: selectedCurriculum.fidelity_status,
           },
         });
 
@@ -304,7 +334,7 @@ export default function NovaAtividadePage() {
                   <label>Bimestre<select value={term} onChange={(e) => setTerm(e.target.value)}>{terms.map((value) => <option key={value}>{value}</option>)}</select></label>
                   <label>Tema / objeto<select value={theme} onChange={(e) => setTheme(e.target.value)}>{themes.map((item) => <option key={item.id}>{item.theme}</option>)}</select></label>
                 </div>
-                {selectedCurriculum && <div className="curriculumPreview"><b>Unidade oficial selecionada</b><p>{selectedCurriculum.theme}</p><small className="official">{selectedCurriculum.source_name} · {selectedCurriculum.teacher_materials.length} referência(s) do professor · {selectedCurriculum.student_materials.length} do estudante</small></div>}
+                {selectedCurriculum && <div className="curriculumPreview"><b>Unidade oficial com conteúdo indexado</b><p>{selectedCurriculum.theme}</p><p>{selectedCurriculum.learning_objectives[0]}</p><small className="official">{selectedCurriculum.source_name} · conceitos: {selectedCurriculum.core_concepts.slice(0, 5).join(", ")} · {selectedCurriculum.teacher_materials.length + selectedCurriculum.student_materials.length} documento(s)</small></div>}
               </section>
             ) : (
               <section className="formSection">

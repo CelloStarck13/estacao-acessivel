@@ -6,7 +6,7 @@ export type GeneratedQuestion = {
   media_url?: string | null; media_alt?: string | null; media_caption?: string | null;
 };
 export type GeneratedActivity = { title: string; learningObjective: string; description: string; instructions: string[]; supportsApplied: string[]; responseGuidance: string[]; teacherNotes: string[]; assessment: string[]; questions: GeneratedQuestion[]; sourceUnit?: GeneratorInput["sourceUnit"] };
-type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; supportNeeds: string[]; autonomyLevel: string; responseModes: string[]; sourceUnit?: { materialKey: string; sourceName: string; teacherMaterials: Array<{label:string;url:string}>; studentMaterials: Array<{label:string;url:string}> } | null };
+type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; supportNeeds: string[]; autonomyLevel: string; responseModes: string[]; sourceUnit?: { materialKey: string; sourceName: string; teacherMaterials: Array<{label:string;url:string}>; studentMaterials: Array<{label:string;url:string}>; domain: string; pedagogicalFocus: string; learningObjectives: string[]; coreConcepts: string[]; authenticContexts: string[]; activityPatterns: string[]; assessmentEvidence: string[]; misconceptionAlerts: string[]; fidelityStatus: "extracted" | "reviewed" } | null };
 
 const profileSupportMap: Record<string, string[]> = {
   TEA: ["linguagem direta e literal", "rotina previsível", "uma ação por etapa", "redução de ambiguidades"],
@@ -37,8 +37,22 @@ function questionSupport(input: GeneratorInput) {
   return uniq(parts).join("; ") || "instrução objetiva e possibilidade de releitura";
 }
 
+function knowledge(input: GeneratorInput) {
+  const unit = input.sourceUnit;
+  if (!unit) throw new Error("A geração automática exige uma unidade pedagógica indexada.");
+  return {
+    focus: unit.pedagogicalFocus,
+    objective: unit.learningObjectives[0] || input.curriculumObjective || `Aplicar conhecimentos de ${input.theme}.`,
+    concepts: unit.coreConcepts.slice(0, 5),
+    context: unit.authenticContexts[0] || "situação autêntica de aprendizagem",
+    pattern: unit.activityPatterns[0] || "analisar, decidir e justificar",
+    assessment: unit.assessmentEvidence,
+  };
+}
+
 function cultureDigitalQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
+  const unit = knowledge(input);
   if (/9º/.test(input.schoolYear)) return [
     { position: 1, question_type: "instruction", prompt: "DESAFIO — No grupo da turma apareceu a mensagem: ‘A escola cancelou as aulas amanhã. Compartilhe agora!’. Ela não informa autor, data, fonte oficial nem link. Sua missão é decidir o que fazer antes de repassar a informação.", correct_answer: null, accessibility_support: `${support}; separar visualmente mensagem, pistas e ação`, points: 0, media_url: "/activity-media/verificar-informacao.svg", media_alt: "Comparação entre uma mensagem sem fonte e uma informação confirmada por fonte oficial", media_caption: "Observe os sinais de confiabilidade antes de compartilhar." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual ação verifica a confiabilidade da mensagem antes do compartilhamento?", options: ["Consultar o site oficial da escola e conferir autor e data", "Repassar porque foi enviada por um colega", "Acreditar porque a frase parece urgente", "Compartilhar primeiro e verificar depois"], correct_answer: "Consultar o site oficial da escola e conferir autor e data", accessibility_support: support, points: 1 },
@@ -54,6 +68,18 @@ function cultureDigitalQuestions(input: GeneratorInput): GeneratedQuestion[] {
 
 function mediaQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
+  const unit = knowledge(input);
+  const title = input.theme.toLowerCase();
+  if (title.includes("redes sociais") || title.includes("algoritmos")) return [
+    { position: 1, question_type: "instruction", prompt: `INVESTIGAÇÃO — Em ${unit.context}, dois perfis recebem recomendações diferentes depois de interagir com conteúdos distintos. Analise como as escolhas do usuário e o sistema de recomendação influenciam o que aparece na tela.`, correct_answer: null, accessibility_support: `${support}; representar visualmente interação, dado coletado e recomendação`, points: 0, media_url: "/activity-media/verificar-informacao.svg", media_alt: "Dois fluxos de recomendação mostrando interações diferentes e conteúdos sugeridos", media_caption: "As recomendações podem ser influenciadas pelas interações registradas." },
+    { position: 2, question_type: "multiple_choice", prompt: "Qual explicação descreve melhor a relação entre interação e recomendação?", options: ["O sistema usa sinais de interação para selecionar conteúdos que considera relevantes", "Todas as pessoas recebem sempre os mesmos conteúdos", "A recomendação acontece sem utilizar nenhum dado", "Somente a quantidade de seguidores define tudo que aparece"], correct_answer: "O sistema usa sinais de interação para selecionar conteúdos que considera relevantes", accessibility_support: support, points: 1 },
+    { position: 3, question_type: "open_text", prompt: `Aplique esta ação: ${unit.pattern}. Explique uma consequência positiva e um risco das recomendações personalizadas.`, correct_answer: null, accessibility_support: `${support}; aceitar duas frases curtas, quadro visual ou resposta em Libras`, points: 2 },
+  ];
+  if (title.includes("ia ") || title.includes("inteligência")) return [
+    { position: 1, question_type: "instruction", prompt: `DESAFIO DE IA — Use o contexto “${unit.context}”. Uma ferramenta de IA propôs uma explicação para um problema social, mas não informou fontes nem limites. Verifique a resposta antes de utilizá-la.`, correct_answer: null, accessibility_support: `${support}; separar afirmação, evidência, fonte e limite`, points: 0, media_url: "/activity-media/verificar-informacao.svg", media_alt: "Resposta de inteligência artificial sendo conferida com fontes e evidências", media_caption: "Uma resposta de IA precisa ser verificada antes de orientar decisões." },
+    { position: 2, question_type: "multiple_choice", prompt: "Qual procedimento torna o uso da IA mais responsável?", options: ["Comparar a resposta com fontes confiáveis e identificar possíveis limites ou vieses", "Usar a primeira resposta sem conferir", "Considerar toda resposta de IA como fato", "Retirar o contexto para obter uma resposta mais curta"], correct_answer: "Comparar a resposta com fontes confiáveis e identificar possíveis limites ou vieses", accessibility_support: support, points: 1 },
+    { position: 3, question_type: "open_text", prompt: `Com base no objetivo “${unit.objective}”, escreva uma pergunta de verificação que você faria antes de aceitar a resposta da IA.`, correct_answer: null, accessibility_support: `${support}; aceitar pergunta curta, seleção de palavras-chave ou Libras`, points: 2 },
+  ];
   return [
     { position: 1, question_type: "instruction", prompt: "DESAFIO — A turma precisa divulgar uma campanha de uso responsável do celular. O cartaz atual tem texto longo, letras pequenas e não informa público, objetivo nem ação esperada. Sua missão é melhorar a comunicação.", correct_answer: null, accessibility_support: `${support}; apresentar o cartaz em blocos: público, mensagem e ação`, points: 0, media_url: "/activity-media/comunicacao-acessivel.svg", media_alt: "Cartaz organizado em título, imagem, mensagem curta e chamada para ação", media_caption: "Uma comunicação acessível organiza as informações essenciais." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual versão comunica melhor a campanha?", options: ["Título curto, imagem relacionada, texto legível e ação clara", "Texto comprido, letras pequenas e nenhuma orientação", "Muitas cores, sem título e sem público definido", "Somente uma imagem, sem descrição ou mensagem"], correct_answer: "Título curto, imagem relacionada, texto legível e ação clara", accessibility_support: support, points: 1 },
@@ -62,12 +88,12 @@ function mediaQuestions(input: GeneratorInput): GeneratedQuestion[] {
 }
 
 function algorithmQuestions(input: GeneratorInput): GeneratedQuestion[] {
-  const support = questionSupport(input); const theme = input.theme.toLowerCase();
+  const support = questionSupport(input); const theme = input.theme.toLowerCase(); const unit = knowledge(input);
   const context = theme.includes("python") ? "um programa em Python que recebe dados, processa uma regra e apresenta um resultado" : theme.includes("recurs") || theme.includes("repet") || theme.includes("laço") ? "um desenho que repete um padrão e altera tamanho ou posição a cada etapa" : theme.includes("lista") || theme.includes("ordena") ? "uma lista de valores que precisa ser organizada e verificada" : theme.includes("p5") || theme.includes("arte") || theme.includes("cores") ? "uma composição digital interativa que reage à posição do ponteiro" : "uma solução computacional com entrada, processamento e saída";
   return [
-    { position: 1, question_type: "instruction", prompt: `DESAFIO — Planeje as instruções para ${context}. Identifique entrada, decisão e resultado esperado.`, correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/fluxo-algoritmo.svg", media_alt: "Fluxo visual com início, entrada, decisão e resultado", media_caption: "Organize o problema em uma sequência que possa ser testada." },
+    { position: 1, question_type: "instruction", prompt: `DESAFIO — Na unidade “${input.theme}”, planeje ${context}. Use estes conceitos como referência: ${unit.concepts.join(", ")}. Identifique entrada, processamento e resultado esperado.`, correct_answer: null, accessibility_support: support, points: 0, media_url: "/activity-media/fluxo-algoritmo.svg", media_alt: "Fluxo visual com início, entrada, decisão e resultado", media_caption: "Organize o problema em uma sequência que possa ser testada." },
     { position: 2, question_type: "multiple_choice", prompt: "Qual estratégia produz um algoritmo que pode ser testado?", options: ["Escrever passos em ordem, executar e corrigir o ponto de erro", "Dar todas as ordens ao mesmo tempo", "Mudar os passos sem registrar", "Ignorar o resultado do teste"], correct_answer: "Escrever passos em ordem, executar e corrigir o ponto de erro", accessibility_support: support, points: 1 },
-    { position: 3, question_type: "open_text", prompt: "Registre uma sequência curta de passos para resolver o desafio e indique o que deve acontecer ao final.", correct_answer: null, accessibility_support: support, points: 2 },
+    { position: 3, question_type: "open_text", prompt: `Aplique esta estratégia da unidade: ${unit.pattern}. Registre a solução e um caso de teste que permita verificar o resultado.`, correct_answer: null, accessibility_support: support, points: 2 },
   ];
 }
 
@@ -101,6 +127,13 @@ function roboticsQuestions(input: GeneratorInput): GeneratedQuestion[] {
 
 function questionsFor(input: GeneratorInput) {
   const normalized = `${input.theme} ${input.component}`.toLowerCase();
+  const domain = input.sourceUnit?.domain;
+  if (domain === "media") return mediaQuestions(input);
+  if (domain === "digital_citizenship") return cultureDigitalQuestions(input);
+  if (domain === "data") return dataQuestions(input);
+  if (domain === "digital_tools") return digitalToolQuestions(input);
+  if (domain === "robotics") return roboticsQuestions(input);
+  if (domain === "programming" || domain === "computational_thinking") return algorithmQuestions(input);
   if (normalized.includes("cultura digital") || normalized.includes("cidadania") || normalized.includes("segurança") || normalized.includes("proteção digital")) return cultureDigitalQuestions(input);
   if (normalized.includes("midi") || normalized.includes("comunica") || normalized.includes("informação") || normalized.includes("redes sociais") || normalized.includes("autor ia")) return mediaQuestions(input);
   if (normalized.includes("planilha") || normalized.includes("ciência de dados") || normalized.includes("análise de dados") || normalized.includes("simulação")) return dataQuestions(input);
@@ -110,17 +143,18 @@ function questionsFor(input: GeneratorInput) {
 }
 
 export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity {
+  const unit = knowledge(input);
   const supportsApplied = uniq([...input.learnerProfiles.flatMap((profile) => profileSupportMap[profile] ?? []), ...input.supportNeeds]);
   const prefix = input.component === "Programação" ? "Missão Código" : input.component === "Robótica" ? "Desafio Maker" : "Conexão Digital";
   return {
     title: `${prefix}: ${input.theme}`,
-    learningObjective: input.curriculumObjective || `Aplicar conhecimentos de ${input.theme} em uma situação-problema adequada ao ${input.schoolYear}.`,
-    description: `Situação-problema de ${input.component} para ${input.schoolYear}, ${input.term}, alinhada a ${input.theme}. O estudante analisa evidências, toma uma decisão e comunica sua compreensão com os apoios selecionados.`,
-    instructions: ["Apresentar o objetivo antes do desafio.", "Mostrar uma etapa por vez quando esse apoio estiver selecionado.", "Confirmar a compreensão sem fornecer a resposta.", "Permitir revisão antes do envio."],
+    learningObjective: unit.objective,
+    description: `${unit.focus} Proposta destinada ao ${input.schoolYear}, ${input.term}, construída a partir da unidade oficial “${input.theme}”.`,
+    instructions: [`Contextualizar por meio de ${unit.context}.`, ...input.sourceUnit!.activityPatterns.slice(0, 3).map((pattern) => `Conduzir o estudante a ${pattern}.`), "Confirmar a compreensão sem fornecer a resposta."],
     supportsApplied,
     responseGuidance: input.responseModes.length ? input.responseModes.map((mode) => `permitir resposta por ${mode.toLowerCase()}`) : ["permitir resposta por seleção ou texto curto"],
     teacherNotes: ["O perfil orienta o acesso e não aparece para o estudante.", "O objetivo curricular é preservado; mudam linguagem, mediação e forma de resposta.", autonomyMap[input.autonomyLevel] ?? autonomyMap.moderate, input.sourceUnit ? `Referência: ${input.sourceUnit.sourceName} — ${input.theme}.` : "Atividade sem unidade oficial vinculada; revisar antes de publicar."],
-    assessment: ["Compreende a situação-problema.", "Seleciona evidências relevantes.", "Toma decisão coerente com o objetivo.", "Comunica a resposta pela modalidade escolhida."],
+    assessment: unit.assessment.length ? unit.assessment : ["Compreende a situação-problema.", "Comunica a resposta pela modalidade escolhida."],
     questions: questionsFor(input),
     ...(input.sourceUnit ? { sourceUnit: input.sourceUnit } : {}),
   };
