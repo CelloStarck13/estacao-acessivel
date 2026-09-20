@@ -73,6 +73,7 @@ export default function ProfessorDashboard() {
     </header>
     <aside className="dashboardSidebar"><nav>{menu.map(([label, Icon], index) => {
       if (label === "Criar atividade") return <Link href="/professor/atividade/nova" key={label}><Icon />{label}</Link>;
+      if (label === "Adaptar material") return <Link href="/professor/material/adaptar" key={label}><Icon />{label}</Link>;
       if (label === "Biblioteca") return <Link href="/biblioteca" key={label}><Icon />{label}</Link>;
       return <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>;
     })}</nav></aside>
@@ -80,7 +81,7 @@ export default function ProfessorDashboard() {
       <div className="welcomeRow"><div><h1>Olá, {userName.split(/\s+/)[0]}!</h1><p>Crie, personalize, publique e acompanhe atividades acessíveis.</p></div><span><ShieldCheck /> Dados reais e protegidos</span></div>
       <div className="quickActions">
         <Link className="quickAction create" href="/professor/atividade/nova"><FilePlus2 /><span><b>Criar nova atividade</b><small>Selecione o currículo e personalize para o estudante</small></span><ChevronRight /></Link>
-        <button className="quickAction adapt" title="Módulo em desenvolvimento"><FileCode2 /><span><b>Adaptar material existente</b><small>Em desenvolvimento — próxima etapa do projeto</small></span><ChevronRight /></button>
+        <Link className="quickAction adapt" href="/professor/material/adaptar"><FileCode2 /><span><b>Adaptar material existente</b><small>Envie ou cole um material e personalize o acesso</small></span><ChevronRight /></Link>
         <Link className="quickAction library" href="/biblioteca"><BookOpen /><span><b>Abrir biblioteca</b><small>Explore atividades prontas por categoria</small></span><ChevronRight /></Link>
       </div>
       <div className="metricsGrid">{metrics.map(([label,value,Icon], index) => <article key={label}><span className={index===3?"purple":""}><Icon /></span><div><small>{label}</small><b>{value}</b></div></article>)}</div>
