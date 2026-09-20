@@ -1,3 +1,5 @@
+import { personalizeAndValidate, type PersonalizationCheck } from "@/lib/personalization-engine";
+
 export type GeneratedQuestion = {
   position: number; prompt: string;
   question_type: "open_text" | "multiple_choice" | "true_false" | "instruction";
@@ -5,8 +7,8 @@ export type GeneratedQuestion = {
   accessibility_support?: string | null; points?: number;
   media_url?: string | null; media_alt?: string | null; media_caption?: string | null;
 };
-export type GeneratedActivity = { title: string; learningObjective: string; description: string; instructions: string[]; supportsApplied: string[]; responseGuidance: string[]; teacherNotes: string[]; assessment: string[]; questions: GeneratedQuestion[]; sourceUnit?: GeneratorInput["sourceUnit"] };
-type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; supportNeeds: string[]; autonomyLevel: string; responseModes: string[]; sourceUnit?: { materialKey: string; sourceName: string; teacherMaterials: Array<{label:string;url:string}>; studentMaterials: Array<{label:string;url:string}>; domain: string; pedagogicalFocus: string; learningObjectives: string[]; coreConcepts: string[]; authenticContexts: string[]; activityPatterns: string[]; assessmentEvidence: string[]; misconceptionAlerts: string[]; fidelityStatus: "extracted" | "reviewed" } | null };
+export type GeneratedActivity = { title: string; learningObjective: string; description: string; instructions: string[]; supportsApplied: string[]; responseGuidance: string[]; teacherNotes: string[]; assessment: string[]; questions: GeneratedQuestion[]; personalizationSignature: string; personalizationRules: string[]; validationChecks: PersonalizationCheck[]; generationApproved: boolean; sourceUnit?: GeneratorInput["sourceUnit"] };
+export type GeneratorInput = { component: string; schoolYear: string; term: string; theme: string; curriculumObjective?: string | null; learnerProfiles: string[]; accessBarriers: string[]; supportNeeds: string[]; communicationModes: string[]; autonomyLevel: string; responseModes: string[]; sourceUnit?: { materialKey: string; sourceName: string; teacherMaterials: Array<{label:string;url:string}>; studentMaterials: Array<{label:string;url:string}>; domain: string; pedagogicalFocus: string; learningObjectives: string[]; coreConcepts: string[]; authenticContexts: string[]; activityPatterns: string[]; assessmentEvidence: string[]; misconceptionAlerts: string[]; fidelityStatus: "extracted" | "reviewed" } | null };
 
 const profileSupportMap: Record<string, string[]> = {
   TEA: ["linguagem direta e literal", "rotina previsível", "uma ação por etapa", "redução de ambiguidades"],
@@ -146,6 +148,23 @@ export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity
   const unit = knowledge(input);
   const supportsApplied = uniq([...input.learnerProfiles.flatMap((profile) => profileSupportMap[profile] ?? []), ...input.supportNeeds]);
   const prefix = input.component === "Programação" ? "Missão Código" : input.component === "Robótica" ? "Desafio Maker" : "Conexão Digital";
+  const personalization = personalizeAndValidate({
+    materialKey: input.sourceUnit?.materialKey ?? "manual",
+    schoolYear: input.schoolYear,
+    objective: unit.objective,
+    learnerProfiles: input.learnerProfiles,
+    accessBarriers: input.accessBarriers,
+    supportNeeds: input.supportNeeds,
+    communicationModes: input.communicationModes,
+    autonomyLevel: input.autonomyLevel,
+    responseModes: input.responseModes,
+  }, questionsFor(input));
+
+  if (!personalization.approved) {
+    const failed = personalization.checks.filter((check) => !check.passed).map((check) => check.detail).join(" ");
+    throw new Error(`A atividade não atingiu os critérios de personalização: ${failed}`);
+  }
+
   return {
     title: `${prefix}: ${input.theme}`,
     learningObjective: unit.objective,
@@ -155,7 +174,11 @@ export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity
     responseGuidance: input.responseModes.length ? input.responseModes.map((mode) => `permitir resposta por ${mode.toLowerCase()}`) : ["permitir resposta por seleção ou texto curto"],
     teacherNotes: ["O perfil orienta o acesso e não aparece para o estudante.", "O objetivo curricular é preservado; mudam linguagem, mediação e forma de resposta.", autonomyMap[input.autonomyLevel] ?? autonomyMap.moderate, input.sourceUnit ? `Referência: ${input.sourceUnit.sourceName} — ${input.theme}.` : "Atividade sem unidade oficial vinculada; revisar antes de publicar."],
     assessment: unit.assessment.length ? unit.assessment : ["Compreende a situação-problema.", "Comunica a resposta pela modalidade escolhida."],
-    questions: questionsFor(input),
+    questions: personalization.questions,
+    personalizationSignature: personalization.signature,
+    personalizationRules: personalization.rulesApplied,
+    validationChecks: personalization.checks,
+    generationApproved: personalization.approved,
     ...(input.sourceUnit ? { sourceUnit: input.sourceUnit } : {}),
   };
 }
