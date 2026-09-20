@@ -18,6 +18,7 @@ function toggle(value:string, list:string[], setter:(next:string[])=>void){ sett
 export default function AdaptarMaterialPage(){
   const router=useRouter();
   const [authorized,setAuthorized]=useState(false);
+  const [previewMode,setPreviewMode]=useState(false);
   const [title,setTitle]=useState("");
   const [sourceText,setSourceText]=useState("");
   const [fileName,setFileName]=useState("");
@@ -31,7 +32,23 @@ export default function AdaptarMaterialPage(){
   const [responses,setResponses]=useState<string[]>(["Seleção","Texto"]);
   const [result,setResult]=useState<MaterialAdaptationResult|null>(null);
 
-  useEffect(()=>{ const supabase=createBrowserSupabaseClient(); void supabase.auth.getSession().then(({data})=>{if(!data.session){router.replace("/professor");return;} setAuthorized(true);});},[router]);
+  useEffect(()=>{
+    const supabase=createBrowserSupabaseClient();
+    void supabase.auth.getSession().then(({data})=>{
+      const host=window.location.hostname;
+      const isVercelPreview=host.endsWith(".vercel.app") && host!=="estacao-acessivel.vercel.app";
+      if(!data.session && isVercelPreview){
+        setPreviewMode(true);
+        setAuthorized(true);
+        return;
+      }
+      if(!data.session){
+        router.replace("/professor");
+        return;
+      }
+      setAuthorized(true);
+    });
+  },[router]);
 
   const canGenerate=useMemo(()=>sourceText.trim().length>=80 && title.trim().length>2,[sourceText,title]);
 
@@ -61,7 +78,11 @@ export default function AdaptarMaterialPage(){
     setSaving(true);
     const supabase=createBrowserSupabaseClient();
     const {data:session}=await supabase.auth.getSession();
-    if(!session.session){setMessage("Sua sessão expirou.");setSaving(false);return;}
+    if(!session.session){
+      setMessage(previewMode?"Modo Preview: a adaptação pode ser testada normalmente, mas salvar rascunho exige login.":"Sua sessão expirou.");
+      setSaving(false);
+      return;
+    }
     const {error}=await supabase.from("material_adaptations").insert({
       owner_id:session.session.user.id,title:result.title,source_file_name:fileName||null,source_type:fileName?(fileName.split(".").pop()?.toLowerCase()||"file"):"text",
       original_text:sourceText,learner_profiles:profiles,support_needs:supports,communication_modes:communication,autonomy_level:autonomy,response_modes:responses,adapted_payload:result,status:"draft"
@@ -73,7 +94,8 @@ export default function AdaptarMaterialPage(){
   if(!authorized)return <main className="authPage"><section className="authPanel"><p>Verificando acesso...</p></section></main>;
 
   return <main className="adaptPage"><section className="adaptShell">
-    <header className="adaptHeader"><Link href="/professor/painel"><ArrowLeft/> Voltar ao painel</Link><span>DUDA — Adaptar material existente</span></header>
+    <header className="adaptHeader"><Link href={previewMode?"/":"/professor/painel"}><ArrowLeft/> {previewMode?"Voltar":"Voltar ao painel"}</Link><span>DUDA — Adaptar material existente</span></header>
+    {previewMode&&<div className="previewBanner"><b>Modo de teste Preview</b><span>Você pode testar a adaptação sem login. O salvamento de rascunho fica desativado até entrar com uma sessão válida.</span></div>}
     <section className="adaptCard">
       <div className="adaptTitle"><div><h1>Adaptar material existente</h1><p>Envie um material que você já usa. O DUDA reorganiza o acesso sem substituir o objetivo pedagógico.</p></div><FileText/></div>
       <div className="adaptSection"><h2>1. Adicione o material</h2>
@@ -95,7 +117,7 @@ export default function AdaptarMaterialPage(){
     </section>
 
     {result&&<section id="resultado" className="adaptResult">
-      <div className="resultHead"><div><small>PRÉVIA DO ESTUDANTE</small><h2>{result.title}</h2><p>{result.studentIntro}</p></div><button onClick={save} disabled={saving}><Save/> {saving?"Salvando...":"Salvar rascunho"}</button></div>
+      <div className="resultHead"><div><small>PRÉVIA DO ESTUDANTE</small><h2>{result.title}</h2><p>{result.studentIntro}</p></div><button onClick={save} disabled={saving||previewMode}><Save/> {previewMode?"Salvar indisponível no Preview":saving?"Salvando...":"Salvar rascunho"}</button></div>
       <div className="studentMaterialPreview">{result.blocks.map((block)=><article key={block.index}><span>{block.index}</span><p>{block.text}</p></article>)}</div>
       <div className="guidanceGrid"><section><h3>Professor regente</h3><ul>{result.teacherGuidance.map((item)=><li key={item}>{item}</li>)}</ul></section><section><h3>AEE / apoio</h3><ul>{result.aeeGuidance.map((item)=><li key={item}>{item}</li>)}</ul></section></div>
       <section className="supportSummary"><h3>Apoios aplicados</h3><div>{result.supportsApplied.map((item)=><span key={item}>{item}</span>)}</div></section>
