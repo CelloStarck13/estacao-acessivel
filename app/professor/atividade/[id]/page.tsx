@@ -12,7 +12,8 @@ import "./editor.css";
 
 type QuestionType = "open_text" | "multiple_choice" | "true_false" | "instruction";
 type Question = { id: string; position: number; prompt: string; question_type: QuestionType; options: string[]; correct_answer: string | boolean | null; accessibility_support: string | null; points: number };
-type Activity = { id: string; title: string; description: string | null; component: string | null; school_year: string | null; term: string | null; theme: string | null; learning_objective: string | null; status: string; access_code: string | null };
+type ValidationCheck = { key: string; passed: boolean; detail: string };
+type Activity = { id: string; title: string; description: string | null; component: string | null; school_year: string | null; term: string | null; theme: string | null; learning_objective: string | null; status: string; access_code: string | null; generation_status: "not_applicable" | "approved" | "blocked"; personalization_signature: string | null; generated_content: { personalizationRules?: string[]; validationChecks?: ValidationCheck[] } | null };
 type SubmissionAnswer = { id: string; question_id: string; answer: unknown; is_correct: boolean | null; points_awarded: number | null };
 type Submission = { id: string; participant_alias: string | null; score: number | null; max_score: number | null; completed_at: string; answers: SubmissionAnswer[] };
 const emptyQuestion = { prompt: "", question_type: "multiple_choice" as QuestionType, options: ["", ""], correct_answer: "" as string | boolean, accessibility_support: "", points: 1 };
@@ -46,7 +47,7 @@ export default function ActivityEditorPage() {
     const supabase = createBrowserSupabaseClient();
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) { router.replace("/professor"); return; }
-    const { data, error } = await supabase.from("activities").select("id,title,description,component,school_year,term,theme,learning_objective,status,access_code").eq("id", params.id).single();
+    const { data, error } = await supabase.from("activities").select("id,title,description,component,school_year,term,theme,learning_objective,status,access_code,generation_status,personalization_signature,generated_content").eq("id", params.id).single();
     if (error || !data) { setMessage("Não foi possível carregar esta atividade."); setLoading(false); return; }
     const { data: rows } = await supabase.from("questions").select("id,position,prompt,question_type,options,correct_answer,accessibility_support,points").eq("activity_id", params.id).order("position");
     const { data: submissionRows } = await supabase.from("activity_submissions").select("id,participant_alias,score,max_score,completed_at").eq("activity_id", params.id).order("completed_at", { ascending: false });
@@ -100,6 +101,7 @@ export default function ActivityEditorPage() {
 
   async function publish() {
     if (!questions.length) { setMessage("Adicione pelo menos uma questão antes de publicar."); return; }
+    if (activity?.generation_status === "blocked") { setMessage("A publicação foi bloqueada porque a personalização não passou na validação."); return; }
     setSaving(true);
     const supabase = createBrowserSupabaseClient();
     let code = activity?.access_code ?? createCode(); let error = null;
@@ -136,6 +138,7 @@ export default function ActivityEditorPage() {
     <header className="previewHeader"><Link href="/professor/painel"><ArrowLeft size={18}/> Voltar ao painel</Link><span>{activity.status === "published" ? "Publicada" : "Rascunho salvo"}</span></header>
     <section className="heroPreview"><div><small>{activity.status === "published" ? "ATIVIDADE PUBLICADA" : "EDIÇÃO DA ATIVIDADE"}</small><h1>{activity.title}</h1><p>{activity.description}</p><div className="metaTags"><span>{activity.component}</span><span>{activity.school_year}</span>{activity.term && <span>{activity.term}</span>}</div></div></section>
     <section className="previewCard objectiveCard"><h2>Objetivo de aprendizagem</h2><p>{activity.learning_objective || "Objetivo ainda não informado."}</p></section>
+    {activity.personalization_signature && <section className="previewCard validationCard"><div className="validationHeading"><div><h2>Validação da personalização</h2><p>Confira o que o DUDA aplicou antes de publicar.</p></div><span className={activity.generation_status === "approved" ? "approved" : "blocked"}>{activity.generation_status === "approved" ? "Aprovada" : "Bloqueada"}</span></div><div className="ruleTags">{activity.generated_content?.personalizationRules?.map((rule) => <span key={rule}>{rule.replaceAll("_", " ")}</span>)}</div><ul className="checkList">{activity.generated_content?.validationChecks?.map((check) => <li key={check.key} className={check.passed ? "passed" : "failed"}>{check.passed ? <CheckCircle2 size={18}/> : <XCircle size={18}/>}<span>{check.detail}</span></li>)}</ul><small>Assinatura: {activity.personalization_signature}</small></section>}
     <section className="previewCard"><h2>Questões</h2><p>{questions.length} questão(ões) cadastrada(s).</p><div className="teacherQuestionList">{questions.map((q) => <article key={q.id}><b>{q.position}</b><div><strong>{q.prompt}</strong><small>{q.question_type.replace("_", " ")} · {q.points} ponto(s)</small>{q.options.length > 0 && <ul>{q.options.map((o) => <li key={o}>{o}</li>)}</ul>}</div><div className="rowActions"><button type="button" onClick={() => editQuestion(q)} aria-label="Editar"><Edit3 size={17}/></button><button type="button" onClick={() => void removeQuestion(q.id)} aria-label="Excluir"><Trash2 size={17}/></button></div></article>)}</div></section>
     <form className="previewCard questionEditor" onSubmit={saveQuestion}><h2><Plus size={19}/> {editingId ? "Editar questão" : "Adicionar questão"}</h2>
       <label>Tipo<select value={draft.question_type} onChange={(e) => setDraft({ ...draft, question_type: e.target.value as QuestionType, correct_answer: "" })}><option value="multiple_choice">Múltipla escolha</option><option value="true_false">Verdadeiro ou falso</option><option value="open_text">Resposta aberta</option><option value="instruction">Somente instrução</option></select></label>

@@ -28,6 +28,7 @@ create table if not exists public.generation_checks (
 );
 
 create index if not exists generation_requests_activity_idx on public.generation_requests(activity_id);
+create index if not exists generation_requests_owner_idx on public.generation_requests(owner_id);
 create index if not exists generation_requests_signature_idx on public.generation_requests(personalization_signature);
 create index if not exists generation_checks_request_idx on public.generation_checks(request_id);
 
