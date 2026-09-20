@@ -86,13 +86,15 @@ function rulesFor(input: PersonalizationInput) {
 
 function adaptPrompt(prompt: string, type: AdaptableQuestion["question_type"], rules: string[]) {
   let adapted = prompt.trim();
-  if (rules.includes("linguagem_literal")) adapted = adapted.replace(/Sua missão é/gi, "Faça isto:").replace(/INVESTIGAÇÃO —/g, "SITUAÇÃO —").replace(/DESAFIO —/g, "TAREFA —");
-  if (type !== "instruction" && rules.includes("etapas_explicitas")) adapted = `ETAPA ${type === "open_text" ? "FINAL" : "DE ESCOLHA"}: ${adapted}`;
-  if (rules.includes("modelo_concreto") && type === "instruction") adapted += " Primeiro, observe o exemplo apresentado. Depois, resolva uma parte de cada vez.";
-  if (rules.includes("meta_visivel") && type !== "instruction") adapted = `META DESTA ETAPA: ${adapted}`;
-  if (rules.includes("informacao_visual_escrita")) adapted += " Todas as informações necessárias estão escritas na tela.";
-  if (rules.includes("equivalente_textual")) adapted += " A descrição textual contém todas as informações necessárias; nenhuma resposta depende somente da imagem.";
-  if (rules.includes("aprofundamento") && type === "open_text") adapted += " Compare duas soluções possíveis e justifique qual é mais eficiente.";
+  if (rules.includes("linguagem_literal")) {
+    adapted = adapted
+      .replace(/analise/gi, "observe")
+      .replace(/justifique/gi, "explique")
+      .replace(/investigue/gi, "verifique");
+  }
+  if (rules.includes("aprofundamento") && type === "open_text") {
+    adapted += " Se conseguir, compare duas soluções e explique qual funciona melhor.";
+  }
   return adapted;
 }
 
@@ -135,7 +137,7 @@ export function personalizeAndValidate<T extends AdaptableQuestion>(input: Perso
   const questions = baseQuestions.map((question) => adaptQuestion(question, rulesApplied));
   const baseFingerprint = structuralFingerprint(baseQuestions);
   const adaptedFingerprint = structuralFingerprint(questions);
-  const structuralRules = new Set(["linguagem_literal", "etapas_explicitas", "informacao_visual_escrita", "equivalente_textual", "modelo_concreto", "segmentacao_cognitiva", "meta_visivel", "aprofundamento"]);
+  const structuralRules = new Set(["linguagem_literal", "segmentacao_cognitiva", "aprofundamento"]);
   const requiresStructuralDifference = rulesApplied.some((rule) => structuralRules.has(rule));
   const checks: PersonalizationCheck[] = [
     { key: "official_objective", passed: Boolean(input.objective.trim()), detail: "Objetivo curricular preservado na solicitação." },
