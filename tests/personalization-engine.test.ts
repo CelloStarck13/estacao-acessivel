@@ -3,9 +3,10 @@ import test from "node:test";
 import { createPersonalizationSignature, personalizeAndValidate, type PersonalizationInput } from "../lib/personalization-engine.ts";
 
 const baseQuestions = [
-  { position: 1, question_type: "instruction" as const, prompt: "DESAFIO — Analise uma mensagem antes de compartilhar.", accessibility_support: "releitura", points: 0 },
-  { position: 2, question_type: "multiple_choice" as const, prompt: "Qual ação confirma a fonte?", options: ["Consultar a fonte oficial", "Compartilhar imediatamente", "Confiar na quantidade de curtidas", "Ignorar a data"], correct_answer: "Consultar a fonte oficial", accessibility_support: "releitura", points: 1 },
-  { position: 3, question_type: "open_text" as const, prompt: "Justifique sua decisão.", accessibility_support: "releitura", points: 2 },
+  { position: 1, question_type: "multiple_choice" as const, prompt: "Observe a situação e escolha a ação mais segura.", options: ["Consultar a fonte oficial", "Compartilhar imediatamente", "Confiar na quantidade de curtidas", "Ignorar a data"], correct_answer: "Consultar a fonte oficial", accessibility_support: "releitura", points: 1 },
+  { position: 2, question_type: "multiple_choice" as const, prompt: "Qual informação ajuda a verificar a publicação?", options: ["Fonte e data", "Quantidade de emojis", "Cor da imagem", "Tamanho da tela"], correct_answer: "Fonte e data", accessibility_support: "releitura", points: 1 },
+  { position: 3, question_type: "multiple_choice" as const, prompt: "Qual conclusão usa evidências?", options: ["A que explica os dados observados", "A que ignora os dados", "A que copia uma opinião", "A que não verifica nada"], correct_answer: "A que explica os dados observados", accessibility_support: "releitura", points: 1 },
+  { position: 4, question_type: "open_text" as const, prompt: "Analise a situação e justifique sua decisão.", accessibility_support: "releitura", points: 2 },
 ];
 
 function input(overrides: Partial<PersonalizationInput> = {}): PersonalizationInput {
@@ -29,12 +30,12 @@ test("a assinatura muda quando a personalização muda", () => {
   assert.notEqual(tea, surdez);
 });
 
-test("TEA e surdez produzem estruturas diferentes e preservam o objetivo", () => {
+test("TEA e surdez preservam conteúdo e produzem apoios diferentes", () => {
   const tea = personalizeAndValidate(input({ learnerProfiles: ["TEA"], accessBarriers: ["Enunciado longo ou ambíguo"], supportNeeds: ["Linguagem objetiva", "Uma etapa por vez"] }), baseQuestions);
   const surdez = personalizeAndValidate(input({ learnerProfiles: ["Surdez"], accessBarriers: ["Informação apresentada somente por áudio"], supportNeeds: ["Apoio visual", "Libras"], communicationModes: ["Libras"] }), baseQuestions);
   assert.equal(tea.approved, true);
   assert.equal(surdez.approved, true);
-  assert.notDeepEqual(tea.questions.map((question) => question.prompt), surdez.questions.map((question) => question.prompt));
+  assert.notDeepEqual(tea.questions.map((question) => question.accessibility_support), surdez.questions.map((question) => question.accessibility_support));
   assert.equal(input().objective, "Analisar criticamente informações em ambientes digitais.");
 });
 
@@ -50,4 +51,9 @@ test("seleção com segmentação cognitiva reduz alternativas sem perder a corr
   const selection = result.questions.find((question) => question.question_type === "multiple_choice");
   assert.equal(selection?.options?.length, 3);
   assert.equal(selection?.options?.includes("Consultar a fonte oficial"), true);
+});
+
+test("apoio técnico não é injetado como frase repetitiva no enunciado", () => {
+  const result = personalizeAndValidate(input({ learnerProfiles: ["Surdez"], supportNeeds: ["Apoio visual"], communicationModes: ["Libras"] }), baseQuestions);
+  assert.equal(result.questions.some((question) => /Todas as informações necessárias|META DESTA ETAPA|ETAPA DE ESCOLHA/i.test(question.prompt)), false);
 });
