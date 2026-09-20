@@ -135,12 +135,13 @@ export function personalizeAndValidate<T extends AdaptableQuestion>(input: Perso
   const questions = baseQuestions.map((question) => adaptQuestion(question, rulesApplied));
   const baseFingerprint = structuralFingerprint(baseQuestions);
   const adaptedFingerprint = structuralFingerprint(questions);
-  const hasSelectedPersonalization = input.learnerProfiles.length + input.accessBarriers.length + input.supportNeeds.length + input.communicationModes.length + input.responseModes.length > 0;
+  const structuralRules = new Set(["linguagem_literal", "etapas_explicitas", "informacao_visual_escrita", "equivalente_textual", "modelo_concreto", "segmentacao_cognitiva", "meta_visivel", "aprofundamento"]);
+  const requiresStructuralDifference = rulesApplied.some((rule) => structuralRules.has(rule));
   const checks: PersonalizationCheck[] = [
     { key: "official_objective", passed: Boolean(input.objective.trim()), detail: "Objetivo curricular preservado na solicitação." },
-    { key: "personalization_rules", passed: !hasSelectedPersonalization || rulesApplied.length > 0, detail: `${rulesApplied.length} regra(s) pedagógica(s) resolvida(s).` },
+    { key: "personalization_rules", passed: rulesApplied.length > 0, detail: `${rulesApplied.length} regra(s) pedagógica(s) resolvida(s).` },
     { key: "question_supports", passed: questions.every((question) => Boolean(question.accessibility_support?.trim())), detail: "Todas as questões possuem apoio aplicável." },
-    { key: "structural_difference", passed: !hasSelectedPersonalization || baseFingerprint !== adaptedFingerprint, detail: baseFingerprint === adaptedFingerprint ? "A personalização não alterou a estrutura das questões." : "A personalização alterou linguagem, etapas ou modalidade de participação." },
+    { key: "structural_difference", passed: !requiresStructuralDifference || baseFingerprint !== adaptedFingerprint, detail: requiresStructuralDifference && baseFingerprint === adaptedFingerprint ? "A personalização selecionada deveria alterar a estrutura das questões." : requiresStructuralDifference ? "A personalização alterou linguagem, etapas ou modalidade de participação." : "As escolhas atuais não exigem alteração estrutural dos enunciados." },
     { key: "privacy", passed: questions.every((question) => !input.learnerProfiles.some((profile) => question.prompt.includes(profile))), detail: "O diagnóstico não aparece para o estudante." },
   ];
   return { signature, rulesApplied, questions, checks, approved: checks.every((check) => check.passed) };
