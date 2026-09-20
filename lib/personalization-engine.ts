@@ -137,7 +137,7 @@ export function personalizeAndValidate<T extends AdaptableQuestion>(input: Perso
   const questions = baseQuestions.map((question) => adaptQuestion(question, rulesApplied));
   const baseFingerprint = structuralFingerprint(baseQuestions);
   const adaptedFingerprint = structuralFingerprint(questions);
-  const structuralRules = new Set(["linguagem_literal", "segmentacao_cognitiva", "aprofundamento"]);
+  const structuralRules = new Set(["segmentacao_cognitiva", "aprofundamento"]);
   const requiresStructuralDifference = rulesApplied.some((rule) => structuralRules.has(rule));
   const checks: PersonalizationCheck[] = [
     { key: "official_objective", passed: Boolean(input.objective.trim()), detail: "Objetivo curricular preservado na solicitação." },
