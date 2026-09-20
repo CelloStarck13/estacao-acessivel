@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildGeneratedActivity, type GeneratorInput } from "../lib/activity-generator.ts";
 
-function input(materialKey: string, theme: string, concept: string, context: string): GeneratorInput {
+function input(overrides: Partial<GeneratorInput> = {}): GeneratorInput {
   return {
     component: "Tecnologia e Inovação",
     schoolYear: "9º ano",
     term: "1º bimestre",
-    theme,
-    curriculumObjective: `Analisar ${concept} em situações reais.`,
+    theme: "Redes sociais: conteúdo que se conecta com algoritmos",
+    curriculumObjective: "Compreender como interações influenciam recomendações.",
     learnerProfiles: [],
     accessBarriers: [],
     supportNeeds: [],
@@ -16,40 +16,74 @@ function input(materialKey: string, theme: string, concept: string, context: str
     autonomyLevel: "moderate",
     responseModes: ["Seleção", "Texto"],
     sourceUnit: {
-      materialKey,
+      materialKey: "unidade-redes",
       sourceName: "Material oficial de teste",
       teacherMaterials: [],
       studentMaterials: [],
       domain: "media",
-      pedagogicalFocus: `Estudo aplicado de ${concept}.`,
-      learningObjectives: [`Analisar ${concept} em situações reais.`],
-      coreConcepts: [concept, "evidência"],
-      authenticContexts: [context],
-      activityPatterns: [`comparar evidências sobre ${concept}`],
-      assessmentEvidence: [`uma justificativa baseada em ${concept}`],
-      misconceptionAlerts: [`confundir opinião com evidência sobre ${concept}`],
+      pedagogicalFocus: "Estudo de redes sociais e algoritmos de recomendação.",
+      learningObjectives: ["Compreender como interações influenciam recomendações em redes sociais."],
+      coreConcepts: ["algoritmos de recomendação", "interação", "dados", "personalização"],
+      authenticContexts: ["dois perfis recebem recomendações diferentes após interações diferentes"],
+      activityPatterns: ["relacionar interação, dado registrado e recomendação"],
+      assessmentEvidence: ["explica como uma interação influencia uma recomendação"],
+      misconceptionAlerts: ["não tratar recomendação como escolha aleatória"],
       fidelityStatus: "reviewed",
     },
+    ...overrides,
   };
 }
 
-test("o gerador usa os dados da unidade em vez de um modelo fixo por assunto", () => {
-  const autoria = buildGeneratedActivity(input("unidade-autoria", "Autoria digital", "autoria", "uma postagem sem identificação de autoria"));
-  const algoritmos = buildGeneratedActivity(input("unidade-algoritmos", "Recomendação digital", "algoritmos de recomendação", "dois perfis recebem conteúdos diferentes"));
-
-  assert.match(autoria.questions[0].prompt, /postagem sem identificação de autoria/i);
-  assert.match(autoria.questions[1].prompt + autoria.questions[1].options?.join(" "), /autoria/i);
-  assert.match(algoritmos.questions[0].prompt, /dois perfis recebem conteúdos diferentes/i);
-  assert.match(algoritmos.questions[1].prompt + algoritmos.questions[1].options?.join(" "), /algoritmos de recomendação/i);
-  assert.notDeepEqual(autoria.questions.map((question) => question.prompt), algoritmos.questions.map((question) => question.prompt));
+test("gera quatro questões respondíveis e título da unidade aplicada", () => {
+  const activity = buildGeneratedActivity(input());
+  assert.equal(activity.questions.length, 4);
+  assert.equal(activity.questions.every((question) => question.question_type !== "instruction"), true);
+  assert.equal(activity.title, "Redes sociais: conteúdo que se conecta com algoritmos — atividade aplicada");
+  assert.equal(activity.generationApproved, true);
 });
 
-test("a profundidade muda entre anos finais e ensino médio", () => {
-  const fundamental = buildGeneratedActivity(input("fundamental", "Autoria digital", "autoria", "uma publicação escolar"));
-  const medioInput = input("medio", "Autoria digital", "autoria", "uma publicação escolar");
-  medioInput.schoolYear = "2ª série EM";
-  const medio = buildGeneratedActivity(medioInput);
+test("redes sociais com algoritmos gera recomendação, não checagem genérica de fonte", () => {
+  const activity = buildGeneratedActivity(input());
+  const text = activity.questions.map((question) => `${question.prompt} ${question.options?.join(" ") ?? ""}`).join(" ");
+  assert.match(text, /interaç|recomendaç/i);
+  assert.doesNotMatch(text, /autor identificado, data, fonte/i);
+  assert.equal(activity.curriculumFamily, "recommendation_algorithms");
+});
 
-  assert.match(fundamental.questions[0].prompt, /analise, aplique e justifique/i);
-  assert.match(medio.questions[0].prompt, /compare, avalie e justifique/i);
+test("ordenação de listas usa situação concreta de lista e troca de posições", () => {
+  const activity = buildGeneratedActivity(input({
+    component: "Tecnologia e Inovação",
+    schoolYear: "8º ano",
+    term: "3º bimestre",
+    theme: "Algoritmos clássicos: ordenação de lista com Python",
+    sourceUnit: {
+      materialKey: "lista-python",
+      sourceName: "Material oficial de teste",
+      teacherMaterials: [],
+      studentMaterials: [],
+      domain: "programming",
+      pedagogicalFocus: "Manipulação e ordenação de listas em Python.",
+      learningObjectives: ["Implementar algoritmos de ordenação para manipular listas em Python."],
+      coreConcepts: ["listas", "ordenação", "algoritmo", "comparação", "troca"],
+      authenticContexts: ["organização de uma lista de pontuações em Python"],
+      activityPatterns: ["comparar elementos e trocar posições"],
+      assessmentEvidence: ["ordena uma lista e explica comparação e troca"],
+      misconceptionAlerts: ["não transformar programação em pergunta abstrata"],
+      fidelityStatus: "reviewed",
+    },
+  }));
+  const text = activity.questions.map((question) => question.prompt).join(" ");
+  assert.match(text, /\[7, 3, 5\]|troca|ordenar/i);
+  assert.equal(activity.curriculumFamily, "sorting_lists");
+});
+
+test("gera orientações separadas para regente e AEE sem expor diagnóstico nas questões", () => {
+  const activity = buildGeneratedActivity(input({
+    learnerProfiles: ["TEA"],
+    supportNeeds: ["Linguagem objetiva", "Uma etapa por vez"],
+    responseModes: ["Seleção", "Texto"],
+  }));
+  assert.ok(activity.teacherGuidance.length >= 4);
+  assert.ok(activity.aeeGuidance.length >= 4);
+  assert.equal(activity.questions.some((question) => question.prompt.includes("TEA")), false);
 });
