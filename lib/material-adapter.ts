@@ -296,7 +296,7 @@ export function adaptExistingMaterial(input: MaterialAdaptationInput): MaterialA
   return {
     title: input.title.trim() || "Material adaptado",
     studentIntro: oneAtATime
-      ? "Faça uma etapa por vez. Leia o material de apoio, responda e avance quando estiver pronto."
+      ? "Faça uma parte por vez. Leia o material de apoio, responda e avance quando estiver pronto."
       : "Leia o material de apoio e responda às questões. Você pode reler cada parte quando precisar.",
     taskInstruction,
     blocks,
