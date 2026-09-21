@@ -118,7 +118,18 @@ export default function AdaptarMaterialPage(){
 
     {result&&<section id="resultado" className="adaptResult">
       <div className="resultHead"><div><small>PRÉVIA DO ESTUDANTE</small><h2>{result.title}</h2><p>{result.studentIntro}</p></div><button onClick={save} disabled={saving||previewMode}><Save/> {previewMode?"Salvar indisponível no Preview":saving?"Salvando...":"Salvar rascunho"}</button></div>
-      <div className="studentMaterialPreview">{result.blocks.map((block)=><article key={block.index}><span>{block.index}</span><p>{block.text}</p></article>)}</div>
+      <section className="structureSummary">
+        <div><b>{result.structure.materialType==="activity"?"Atividade identificada":"Material de estudo identificado"}</b><span>{result.structure.sourceQuestionCount ? result.structure.sourceQuestionCount+" questão(ões) preservada(s) do original" : "4 questões de aplicação criadas a partir do conteúdo"}</span></div>
+        <strong>Pronto para revisão do professor</strong>
+      </section>
+      <section className="studentPreviewSection"><h3>Material de apoio</h3><p className="taskInstruction">{result.taskInstruction}</p>
+        <div className="studentMaterialPreview">{result.blocks.map((block)=><article key={block.index}><span>{block.index}</span><p>{block.text}</p></article>)}</div>
+      </section>
+      <section className="studentPreviewSection"><h3>Questões adaptadas</h3>
+        <div className="adaptedQuestions">{result.questions.map((question)=><fieldset key={question.index}><legend><b>{question.index}</b><span>{question.prompt}</span><small>{question.source==="original"?"preservada do original":"criada a partir do material"}</small></legend>
+          {question.type==="multiple_choice" && question.options?.length ? <div className="previewOptions">{question.options.map((option)=><label key={option}><input type="radio" disabled/><span>{option}</span></label>)}</div> : <textarea rows={3} disabled placeholder="Espaço de resposta do estudante"/>}
+        </fieldset>)}</div>
+      </section>
       <div className="guidanceGrid"><section><h3>Professor regente</h3><ul>{result.teacherGuidance.map((item)=><li key={item}>{item}</li>)}</ul></section><section><h3>AEE / apoio</h3><ul>{result.aeeGuidance.map((item)=><li key={item}>{item}</li>)}</ul></section></div>
       <section className="supportSummary"><h3>Apoios aplicados</h3><div>{result.supportsApplied.map((item)=><span key={item}>{item}</span>)}</div></section>
     </section>}
