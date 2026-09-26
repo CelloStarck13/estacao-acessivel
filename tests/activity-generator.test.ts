@@ -102,10 +102,20 @@ test("seleção sem texto converte resposta aberta em escolha equivalente", () =
   assert.equal(activity.questions.length, 4);
 });
 
+test("texto sem seleção converte questões de escolha em resposta aberta", () => {
+  const activity = buildGeneratedActivity(input({ autonomyLevel: "moderate", responseModes: ["Texto"] }));
+  assert.equal(activity.questions.length, 4);
+  assert.equal(activity.questions.every((question) => question.question_type === "open_text"), true);
+});
+
 test("maior autonomia com texto preserva produção aberta", () => {
   const activity = buildGeneratedActivity(input({ autonomyLevel: "autonomous", responseModes: ["Seleção", "Texto"] }));
   assert.equal(activity.questions.some((question) => question.question_type === "open_text"), true);
   assert.equal(activity.questions.every((question) => /tentativa autônoma/i.test(question.accessibility_support ?? "")), true);
+});
+
+test("apoio intenso exige seleção", () => {
+  assert.throws(() => buildGeneratedActivity(input({ autonomyLevel: "intensive", responseModes: ["Texto"] })), /apoio intenso/i);
 });
 
 test("bloqueia forma de resposta ainda não implementada", () => {

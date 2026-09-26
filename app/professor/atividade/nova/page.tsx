@@ -184,10 +184,9 @@ export default function NovaAtividadePage() {
   }, [themes, theme]);
 
   useEffect(() => {
-    setResponseModes((current) => {
-      const next = autonomyLevel === "intensive" ? ["Seleção"] : current.includes("Seleção") ? current : ["Seleção", ...current];
-      return next.length === current.length && next.every((value, index) => value === current[index]) ? current : next;
-    });
+    if (autonomyLevel === "intensive") {
+      setResponseModes(["Seleção"]);
+    }
   }, [autonomyLevel]);
 
   const selectedCurriculum = themes.find((item) => item.theme === theme) ?? null;
@@ -223,8 +222,13 @@ export default function NovaAtividadePage() {
           return;
         }
 
-        if (!responseModes.includes("Seleção") || responseModes.some((responseMode) => !responseOptions.includes(responseMode))) {
-          setMessage("Selecione uma forma de resposta disponível. A resposta por seleção é obrigatória nesta versão.");
+        if (!responseModes.length || responseModes.some((responseMode) => !responseOptions.includes(responseMode))) {
+          setMessage("Selecione pelo menos uma forma de resposta disponível.");
+          return;
+        }
+
+        if (autonomyLevel === "intensive" && !responseModes.includes("Seleção")) {
+          setMessage("No nível de apoio intenso, a resposta por seleção é necessária.");
           return;
         }
 
@@ -439,8 +443,28 @@ export default function NovaAtividadePage() {
                 </div>
                 <div className="optionBlock compact">
                   <h3>Formas de resposta</h3>
-                  <div className="checkGrid small">{responseOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={responseModes.includes(value)} disabled={value === "Seleção" || (value === "Texto" && autonomyLevel === "intensive")} onChange={() => toggle(value, responseModes, setResponseModes)} /><span>{value}</span></label>)}</div>
-                  <p className="optionHint">Seleção já funciona na atividade. Texto é opcional para apoio moderado ou maior autonomia.</p>
+                  <div className="checkGrid small">{responseOptions.map((value) => {
+                    const disabled = autonomyLevel === "intensive" && value === "Texto";
+                    return (
+                      <label className="checkCard" key={value}>
+                        <input
+                          type="checkbox"
+                          checked={responseModes.includes(value)}
+                          disabled={disabled}
+                          onChange={() => {
+                            if (autonomyLevel === "intensive" && value === "Seleção" && responseModes.includes("Seleção")) {
+                              setMessage("No nível de apoio intenso, a resposta por seleção precisa permanecer ativa.");
+                              return;
+                            }
+                            toggle(value, responseModes, setResponseModes);
+                            setMessage("");
+                          }}
+                        />
+                        <span>{value}</span>
+                      </label>
+                    );
+                  })}</div>
+                  <p className="optionHint">Seleção e Texto podem ser ativados ou desativados conforme a necessidade. Em apoio intenso, o DUDA mantém Seleção como forma de resposta.</p>
                 </div>
               </div>
             </section>

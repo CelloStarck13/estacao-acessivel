@@ -336,11 +336,22 @@ const selectionFallbacks: Record<Family, { correct: string; distractors: string[
 };
 
 function applyResponseAndAutonomyRules(input: GeneratorInput, family: Family, questions: GeneratedQuestion[]) {
+  const acceptsSelection = input.responseModes.includes("Seleção");
   const acceptsText = input.responseModes.includes("Texto") && input.autonomyLevel !== "intensive";
   const optionLimit = input.autonomyLevel === "intensive" ? 3 : 4;
   const fallback = selectionFallbacks[family];
 
   return questions.map((question) => {
+    if (!acceptsSelection && acceptsText && (question.question_type === "multiple_choice" || question.question_type === "true_false")) {
+      const { options: _options, correct_answer: _correctAnswer, ...rest } = question;
+      return {
+        ...rest,
+        prompt: `${question.prompt} Responda com suas palavras.`,
+        question_type: "open_text" as const,
+        accessibility_support: `${question.accessibility_support ?? "instrução objetiva"}; aceitar resposta curta ou mediada`,
+      };
+    }
+
     if (question.question_type === "open_text" && !acceptsText) {
       return {
         ...question,
@@ -1093,9 +1104,15 @@ function curriculumChecks(
       key: "response_mode_alignment",
       passed: questions.every((question) => {
         if (question.question_type === "open_text") return input.responseModes.includes("Texto") && input.autonomyLevel !== "intensive";
-        return question.question_type === "multiple_choice" || question.question_type === "true_false";
+        if (question.question_type === "multiple_choice" || question.question_type === "true_false") return input.responseModes.includes("Seleção");
+        return false;
       }),
       detail: "O tipo de cada questão corresponde às formas de resposta e ao nível de autonomia selecionados.",
+    },
+    {
+      key: "intensive_requires_selection",
+      passed: input.autonomyLevel !== "intensive" || input.responseModes.includes("Seleção"),
+      detail: "No nível de apoio intenso, a forma de resposta por seleção permanece disponível.",
     },
     {
       key: "autonomy_structure",
