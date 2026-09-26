@@ -9,3 +9,14 @@
 
 
 .timelineHeading{margin-top:34px}.creationTimeline{background:#fff;border:1px solid #dce7f3;border-radius:14px;padding:6px 16px 6px 22px;margin-bottom:28px}.creationTimeline article{position:relative;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:13px 0 13px 20px;border-bottom:1px solid #edf2f7}.creationTimeline article:last-child{border-bottom:0}.creationTimeline article:before{content:"";position:absolute;left:3px;top:0;bottom:0;width:2px;background:#dce7f3}.creationTimeline article:first-child:before{top:50%}.creationTimeline article:last-child:before{bottom:50%}.timelineDot{position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;z-index:1}.activityDot{background:#0b6cf0}.adaptationDot{background:#e3aa00}.creationTimeline div{display:grid;gap:2px}.creationTimeline small{color:#6a7c94}.creationTimeline time{color:#4d617c;font-size:.78rem;font-weight:800;white-space:nowrap}@media(max-width:620px){.creationTimeline article{grid-template-columns:1fr}.creationTimeline time{padding-left:0}}
+
+.metricsGrid>button{min-height:108px;background:#fff;border:1px solid #e1eaf4;border-radius:13px;padding:17px;display:flex;align-items:center;gap:14px;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.metricsGrid>button:hover{transform:translateY(-2px);border-color:#83b8f6;box-shadow:0 8px 20px #0b5aa814}
+.metricsGrid>button:focus-visible{outline:3px solid #8fc2ff;outline-offset:2px}
+.metricsGrid>button.activeMetric{border:2px solid #0b6cf0;background:#f5f9ff;box-shadow:0 8px 22px #0b5aa81c}
+.metricsGrid>button>span{width:57px;height:57px;border-radius:50%;display:grid;place-items:center;background:#e4f2ff;color:#0669e8;flex:none}
+.metricsGrid>button>span.purple{background:#eee9ff;color:#5534c7}
+.metricsGrid>button div{display:grid;gap:3px}
+.dashboardResults{scroll-margin-top:98px}
+.dashboardError{margin-top:16px;padding:12px 15px;border:1px solid #f0b8b8;border-radius:10px;background:#fff1f1;color:#8f1d1d;font-weight:700}
+.deleteCardButton:disabled{opacity:.45;cursor:wait}
