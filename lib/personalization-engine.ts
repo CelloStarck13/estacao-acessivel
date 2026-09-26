@@ -109,6 +109,11 @@ function supportText(rules: string[], original?: string | null) {
   if (rules.includes("blocos_curtos")) supports.push("bloco curto, meta visível e possibilidade de retomada");
   if (rules.includes("baixa_exigencia_motora")) supports.push("resposta por teclado ou seleção sem precisão motora fina");
   if (rules.includes("comunicacao_alternativa")) supports.push("aceitar comunicação alternativa e resposta por seleção");
+  if (rules.includes("mediacao_frequente")) supports.push("apresentar uma questão por vez e confirmar a compreensão antes de avançar");
+  if (rules.includes("pistas_sob_demanda")) supports.push("oferecer pistas graduais somente quando houver necessidade");
+  if (rules.includes("escolha_autonoma")) supports.push("priorizar tentativa autônoma e mediação apenas quando solicitada");
+  if (rules.includes("resposta_selecao")) supports.push("permitir resposta por seleção");
+  if (rules.includes("resposta_texto")) supports.push("permitir resposta por texto curto quando previsto na questão");
   return [...new Set([original?.trim(), ...supports].filter(Boolean) as string[])].join("; ");
 }
 

@@ -87,3 +87,27 @@ test("gera orientações separadas para regente e AEE sem expor diagnóstico nas
   assert.ok(activity.aeeGuidance.length >= 4);
   assert.equal(activity.questions.some((question) => question.prompt.includes("TEA")), false);
 });
+
+test("apoio intenso gera quatro questões por seleção com até três alternativas", () => {
+  const activity = buildGeneratedActivity(input({ autonomyLevel: "intensive", responseModes: ["Seleção", "Texto"] }));
+  assert.equal(activity.questions.length, 4);
+  assert.equal(activity.questions.every((question) => question.question_type === "multiple_choice" || question.question_type === "true_false"), true);
+  assert.equal(activity.questions.every((question) => question.question_type !== "multiple_choice" || (question.options?.length ?? 0) <= 3), true);
+  assert.equal(activity.questions.every((question) => question.question_type !== "multiple_choice" || question.options?.includes(String(question.correct_answer))), true);
+});
+
+test("seleção sem texto converte resposta aberta em escolha equivalente", () => {
+  const activity = buildGeneratedActivity(input({ autonomyLevel: "moderate", responseModes: ["Seleção"] }));
+  assert.equal(activity.questions.some((question) => question.question_type === "open_text"), false);
+  assert.equal(activity.questions.length, 4);
+});
+
+test("maior autonomia com texto preserva produção aberta", () => {
+  const activity = buildGeneratedActivity(input({ autonomyLevel: "autonomous", responseModes: ["Seleção", "Texto"] }));
+  assert.equal(activity.questions.some((question) => question.question_type === "open_text"), true);
+  assert.equal(activity.questions.every((question) => /tentativa autônoma/i.test(question.accessibility_support ?? "")), true);
+});
+
+test("bloqueia forma de resposta ainda não implementada", () => {
+  assert.throws(() => buildGeneratedActivity(input({ responseModes: ["Seleção", "Áudio"] })), /formas de resposta implementadas/i);
+});

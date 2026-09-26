@@ -288,6 +288,81 @@ function q(
   };
 }
 
+const selectionFallbacks: Record<Family, { correct: string; distractors: string[] }> = {
+  recommendation_algorithms: {
+    correct: "As interações do usuário fornecem sinais que influenciam as próximas recomendações",
+    distractors: ["As recomendações não usam nenhuma interação", "Todas as pessoas recebem sempre as mesmas recomendações"],
+  },
+  source_literacy: {
+    correct: "Verificar autoria, data, fonte e evidências antes de compartilhar",
+    distractors: ["Compartilhar primeiro e verificar depois", "Confiar apenas na quantidade de curtidas"],
+  },
+  digital_safety: {
+    correct: "Interromper a ação de risco, proteger os dados e pedir ajuda quando necessário",
+    distractors: ["Fornecer os dados solicitados para testar", "Ignorar os sinais de risco e continuar"],
+  },
+  data_types: {
+    correct: "Identificar o tipo de cada dado e organizá-lo conforme sua finalidade",
+    distractors: ["Tratar todos os dados como se fossem iguais", "Escolher o tipo de dado pela cor da tela"],
+  },
+  data_analysis: {
+    correct: "Usar os dados observados como evidência para justificar a conclusão",
+    distractors: ["Ignorar os dados que contrariam a opinião", "Escolher uma conclusão sem consultar a representação"],
+  },
+  sorting_lists: {
+    correct: "Comparar os valores e trocar suas posições conforme o critério de ordenação",
+    distractors: ["Apagar os valores que estão fora de ordem", "Trocar posições sem comparar os valores"],
+  },
+  python_functions_loops: {
+    correct: "Organizar o procedimento em etapas, testar o resultado e corrigir quando necessário",
+    distractors: ["Executar sem definir as etapas", "Evitar testes para não alterar o código"],
+  },
+  programming: {
+    correct: "Organizar o procedimento em etapas, testar o resultado e corrigir quando necessário",
+    distractors: ["Executar sem definir as etapas", "Evitar testes para não alterar o código"],
+  },
+  robotics: {
+    correct: "Relacionar a entrada do sensor, o processamento e a ação esperada",
+    distractors: ["Acionar o robô sem considerar o sensor", "Alterar peças sem testar o comportamento"],
+  },
+  digital_tools: {
+    correct: "Organizar o conteúdo com informação clara, legível e adequada ao público",
+    distractors: ["Usar muitos elementos sem hierarquia", "Retirar a informação principal para reduzir o texto"],
+  },
+  general: {
+    correct: "Aplicar o conceito da unidade à situação e justificar a escolha com evidências",
+    distractors: ["Responder sem considerar o objetivo da unidade", "Escolher uma opção sem observar a situação"],
+  },
+};
+
+function applyResponseAndAutonomyRules(input: GeneratorInput, family: Family, questions: GeneratedQuestion[]) {
+  const acceptsText = input.responseModes.includes("Texto") && input.autonomyLevel !== "intensive";
+  const optionLimit = input.autonomyLevel === "intensive" ? 3 : 4;
+  const fallback = selectionFallbacks[family];
+
+  return questions.map((question) => {
+    if (question.question_type === "open_text" && !acceptsText) {
+      return {
+        ...question,
+        prompt: `${question.prompt} Escolha a resposta que melhor demonstra o procedimento esperado.`,
+        question_type: "multiple_choice" as const,
+        options: [fallback.correct, ...fallback.distractors].slice(0, optionLimit),
+        correct_answer: fallback.correct,
+        points: 1,
+      };
+    }
+
+    if (question.question_type === "multiple_choice" && question.options) {
+      const correct = typeof question.correct_answer === "string" ? question.correct_answer : null;
+      const options = question.options.slice(0, optionLimit);
+      if (correct && !options.includes(correct)) options[options.length - 1] = correct;
+      return { ...question, options: [...new Set(options)] };
+    }
+
+    return question;
+  });
+}
+
 function recommendationQuestions(input: GeneratorInput): GeneratedQuestion[] {
   const support = questionSupport(input);
   const media = mediaForFamily("recommendation_algorithms");
@@ -1009,6 +1084,29 @@ function curriculumChecks(
       passed: noLegacy,
       detail: noLegacy ? "Nenhum molde genérico legado foi encontrado." : "Foi detectado texto de um molde genérico antigo.",
     },
+    {
+      key: "supported_response_modes",
+      passed: input.responseModes.length > 0 && input.responseModes.every((mode) => mode === "Seleção" || mode === "Texto"),
+      detail: "A atividade utiliza somente formas de resposta implementadas na tela do estudante.",
+    },
+    {
+      key: "response_mode_alignment",
+      passed: questions.every((question) => {
+        if (question.question_type === "open_text") return input.responseModes.includes("Texto") && input.autonomyLevel !== "intensive";
+        return question.question_type === "multiple_choice" || question.question_type === "true_false";
+      }),
+      detail: "O tipo de cada questão corresponde às formas de resposta e ao nível de autonomia selecionados.",
+    },
+    {
+      key: "autonomy_structure",
+      passed: questions.every((question) => question.question_type !== "multiple_choice" || (question.options?.length ?? 0) <= (input.autonomyLevel === "intensive" ? 3 : 4)),
+      detail: "A quantidade de escolhas respeita a carga decisória definida pelo nível de autonomia.",
+    },
+    {
+      key: "answer_integrity",
+      passed: questions.every((question) => question.question_type !== "multiple_choice" || (typeof question.correct_answer === "string" && Boolean(question.options?.includes(question.correct_answer)))),
+      detail: "Toda questão de seleção contém a resposta correta entre as alternativas.",
+    },
   ];
 }
 
@@ -1020,6 +1118,7 @@ export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity
   ]);
 
   const built = buildQuestions(input);
+  const responseAdaptedQuestions = applyResponseAndAutonomyRules(input, built.family, built.questions);
   const personalization = personalizeAndValidate(
     {
       materialKey: input.sourceUnit?.materialKey ?? "manual",
@@ -1032,7 +1131,7 @@ export function buildGeneratedActivity(input: GeneratorInput): GeneratedActivity
       autonomyLevel: input.autonomyLevel,
       responseModes: input.responseModes,
     },
-    built.questions,
+    responseAdaptedQuestions,
   );
 
   const title = `${input.theme} — atividade aplicada`;

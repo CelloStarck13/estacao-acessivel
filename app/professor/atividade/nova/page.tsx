@@ -85,7 +85,7 @@ const barrierOptions = [
 
 const communicationOptions = ["Língua Portuguesa escrita", "Libras", "Comunicação oral", "Comunicação alternativa / aumentativa", "Mediação por parceiro de comunicação"];
 
-const responseOptions = ["Seleção", "Arrastar", "Texto", "Áudio", "Desenho", "Imagem", "Código", "Material impresso"];
+const responseOptions = ["Seleção", "Texto"];
 
 const manualYears: Record<string, string[]> = {
   "Tecnologia e Inovação": ["6º ano", "7º ano", "8º ano", "9º ano"],
@@ -183,6 +183,13 @@ export default function NovaAtividadePage() {
     if (themes.length && !themes.some((item) => item.theme === theme)) setTheme(themes[0].theme);
   }, [themes, theme]);
 
+  useEffect(() => {
+    setResponseModes((current) => {
+      const next = autonomyLevel === "intensive" ? ["Seleção"] : current.includes("Seleção") ? current : ["Seleção", ...current];
+      return next.length === current.length && next.every((value, index) => value === current[index]) ? current : next;
+    });
+  }, [autonomyLevel]);
+
   const selectedCurriculum = themes.find((item) => item.theme === theme) ?? null;
 
   function toggle(value: string, values: string[], setter: (next: string[]) => void) {
@@ -213,6 +220,11 @@ export default function NovaAtividadePage() {
       if (mode === "automatic") {
         if (!selectedCurriculum) {
           setMessage("Selecione componente, ano/série, bimestre e tema para continuar.");
+          return;
+        }
+
+        if (!responseModes.includes("Seleção") || responseModes.some((responseMode) => !responseOptions.includes(responseMode))) {
+          setMessage("Selecione uma forma de resposta disponível. A resposta por seleção é obrigatória nesta versão.");
           return;
         }
 
@@ -427,7 +439,8 @@ export default function NovaAtividadePage() {
                 </div>
                 <div className="optionBlock compact">
                   <h3>Formas de resposta</h3>
-                  <div className="checkGrid small">{responseOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={responseModes.includes(value)} onChange={() => toggle(value, responseModes, setResponseModes)} /><span>{value}</span></label>)}</div>
+                  <div className="checkGrid small">{responseOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={responseModes.includes(value)} disabled={value === "Seleção" || (value === "Texto" && autonomyLevel === "intensive")} onChange={() => toggle(value, responseModes, setResponseModes)} /><span>{value}</span></label>)}</div>
+                  <p className="optionHint">Seleção já funciona na atividade. Texto é opcional para apoio moderado ou maior autonomia.</p>
                 </div>
               </div>
             </section>
