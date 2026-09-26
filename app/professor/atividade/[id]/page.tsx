@@ -14,7 +14,7 @@ type QuestionType = "open_text" | "multiple_choice" | "true_false" | "instructio
 type Question = { id: string; position: number; prompt: string; question_type: QuestionType; options: string[]; correct_answer: string | boolean | null; accessibility_support: string | null; points: number };
 type ValidationCheck = { key: string; passed: boolean; detail: string };
 type Activity = { id: string; title: string; description: string | null; component: string | null; school_year: string | null; term: string | null; theme: string | null; learning_objective: string | null; status: string; access_code: string | null; generation_status: "not_applicable" | "approved" | "blocked"; personalization_signature: string | null; generated_content: { personalizationRules?: string[]; validationChecks?: ValidationCheck[]; teacherGuidance?: string[]; aeeGuidance?: string[]; curriculumFamily?: string } | null };
-type SubmissionAnswer = { id: string; question_id: string; answer: unknown; is_correct: boolean | null; points_awarded: number | null };
+type SubmissionAnswer = { id: string; question_id: string; answer: unknown; is_correct: boolean | null; points_awarded: number | null; review_note: string | null; reviewed_at: string | null };
 type Submission = { id: string; participant_alias: string | null; score: number | null; max_score: number | null; completed_at: string; answers: SubmissionAnswer[] };
 const emptyQuestion = { prompt: "", question_type: "multiple_choice" as QuestionType, options: ["", ""], correct_answer: "" as string | boolean, accessibility_support: "", points: 1 };
 
@@ -37,6 +37,8 @@ export default function ActivityEditorPage() {
   const [qrData, setQrData] = useState("");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<string | null>(null);
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, { points: string; note: string }>>({});
+  const [reviewingAnswerId, setReviewingAnswerId] = useState<string | null>(null);
 
   const studentLink = useMemo(() => {
     if (!activity?.access_code || typeof window === "undefined") return "";
@@ -52,7 +54,7 @@ export default function ActivityEditorPage() {
     const { data: rows } = await supabase.from("questions").select("id,position,prompt,question_type,options,correct_answer,accessibility_support,points").eq("activity_id", params.id).order("position");
     const { data: submissionRows } = await supabase.from("activity_submissions").select("id,participant_alias,score,max_score,completed_at").eq("activity_id", params.id).order("completed_at", { ascending: false });
     const submissionIds = (submissionRows ?? []).map((item) => item.id);
-    const { data: answerRows } = submissionIds.length ? await supabase.from("submission_answers").select("id,submission_id,question_id,answer,is_correct,points_awarded").in("submission_id", submissionIds) : { data: [] };
+    const { data: answerRows } = submissionIds.length ? await supabase.from("submission_answers").select("id,submission_id,question_id,answer,is_correct,points_awarded,review_note,reviewed_at").in("submission_id", submissionIds) : { data: [] };
     const answerMap = new Map<string, SubmissionAnswer[]>();
     for (const answer of answerRows ?? []) {
       const current = answerMap.get(answer.submission_id) ?? [];
@@ -62,6 +64,10 @@ export default function ActivityEditorPage() {
     const loadedSubmissions = (submissionRows ?? []).map((item) => ({ ...item, answers: answerMap.get(item.id) ?? [] })) as Submission[];
     setActivity(data as Activity); setQuestions((rows ?? []) as Question[]); setSubmissions(loadedSubmissions);
     setSelectedSubmission((current) => current && loadedSubmissions.some((item) => item.id === current) ? current : loadedSubmissions[0]?.id ?? null);
+    setReviewDrafts(Object.fromEntries((answerRows ?? []).map((answer) => [answer.id, {
+      points: answer.points_awarded === null || answer.points_awarded === undefined ? "" : String(answer.points_awarded),
+      note: answer.review_note ?? "",
+    }])));
     setLoading(false);
   }, [params.id, router]);
 
@@ -131,6 +137,28 @@ export default function ActivityEditorPage() {
     const link = document.createElement("a"); link.href = url; link.download = `respostas-${activity?.access_code ?? "atividade"}.csv`; link.click(); URL.revokeObjectURL(url);
   }
 
+  async function reviewAnswer(answerId: string, maxPoints: number) {
+    const draft = reviewDrafts[answerId] ?? { points: "", note: "" };
+    const points = Number(draft.points);
+    if (!Number.isFinite(points) || points < 0 || points > maxPoints) {
+      setMessage(`Informe uma pontuação entre 0 e ${maxPoints}.`);
+      return;
+    }
+    setReviewingAnswerId(answerId);
+    const supabase = createBrowserSupabaseClient();
+    const { error } = await supabase.rpc("review_submission_answer", {
+      p_answer_id: answerId,
+      p_points_awarded: points,
+      p_review_note: draft.note || null,
+    });
+    if (error) setMessage(`Não foi possível salvar a avaliação: ${error.message}`);
+    else {
+      setMessage("Avaliação salva e pontuação recalculada.");
+      await load();
+    }
+    setReviewingAnswerId(null);
+  }
+
   if (loading) return <main className="previewPage"><section className="previewShell"><p>Carregando atividade...</p></section></main>;
   if (!activity) return <main className="previewPage"><section className="previewShell"><p>{message}</p></section></main>;
 
@@ -155,7 +183,7 @@ export default function ActivityEditorPage() {
       <div className="responsesHeader"><div><h2>Respostas recebidas</h2><p>{submissions.length} envio(s) registrado(s).</p></div><div className="responseTools"><button type="button" onClick={() => window.print()} disabled={!submissions.length}><Printer size={17}/> Imprimir</button><button type="button" onClick={exportCsv} disabled={!submissions.length}><Download size={17}/> Exportar CSV</button></div></div>
       {!submissions.length ? <div className="emptyResponses"><Eye size={34}/><strong>Nenhuma resposta recebida ainda.</strong><span>Quando um estudante concluir, o resultado aparecerá aqui automaticamente.</span></div> : <div className="responsesLayout">
         <div className="submissionList">{submissions.map((submission, index) => <button type="button" className={selectedSubmission === submission.id ? "active" : ""} key={submission.id} onClick={() => setSelectedSubmission(submission.id)}><span><strong>{submission.participant_alias || `Resposta ${submissions.length - index}`}</strong><small>{new Date(submission.completed_at).toLocaleString("pt-BR")}</small></span><b>{submission.score ?? 0}/{submission.max_score ?? 0}</b></button>)}</div>
-        {submissions.filter((submission) => submission.id === selectedSubmission).map((submission) => <div className="submissionDetail" key={submission.id}><div className="detailSummary"><span>Identificação<strong>{submission.participant_alias || "Não informada"}</strong></span><span>Conclusão<strong>{new Date(submission.completed_at).toLocaleString("pt-BR")}</strong></span><span>Pontuação<strong>{submission.score ?? 0} de {submission.max_score ?? 0}</strong></span></div><div className="answerReview">{questions.filter((q) => q.question_type !== "instruction").map((question) => { const answer = submission.answers.find((item) => item.question_id === question.id); return <article key={question.id}><div className="answerTitle"><b>{question.position}</b><strong>{question.prompt}</strong>{answer?.is_correct === true ? <CheckCircle2 className="correct" size={22}/> : answer?.is_correct === false ? <XCircle className="incorrect" size={22}/> : <span className="manualReview">Revisar</span>}</div><p><span>Resposta:</span> {displayAnswer(answer?.answer)}</p>{answer?.points_awarded !== null && answer?.points_awarded !== undefined && <small>{answer.points_awarded} de {question.points} ponto(s)</small>}</article> })}</div></div>)}
+        {submissions.filter((submission) => submission.id === selectedSubmission).map((submission) => <div className="submissionDetail" key={submission.id}><div className="detailSummary"><span>Identificação<strong>{submission.participant_alias || "Não informada"}</strong></span><span>Conclusão<strong>{new Date(submission.completed_at).toLocaleString("pt-BR")}</strong></span><span>Pontuação<strong>{submission.score ?? 0} de {submission.max_score ?? 0}</strong></span></div><div className="answerReview">{questions.filter((q) => q.question_type !== "instruction").map((question) => { const answer = submission.answers.find((item) => item.question_id === question.id); const needsManualReview = question.question_type === "open_text"; const reviewed = Boolean(answer?.reviewed_at); return <article key={question.id}><div className="answerTitle"><b>{question.position}</b><strong>{question.prompt}</strong>{answer?.is_correct === true ? <CheckCircle2 className="correct" size={22}/> : answer?.is_correct === false ? <XCircle className="incorrect" size={22}/> : reviewed ? <span className="manualReview reviewed">Avaliada</span> : <span className="manualReview">Revisar</span>}</div><p><span>Resposta:</span> {displayAnswer(answer?.answer)}</p>{answer?.points_awarded !== null && answer?.points_awarded !== undefined && <small>{answer.points_awarded} de {question.points} ponto(s)</small>}{needsManualReview && answer && <div className="manualGrade"><label>Pontos<input type="number" min="0" max={question.points} step="0.5" value={reviewDrafts[answer.id]?.points ?? ""} onChange={(event) => setReviewDrafts((current) => ({ ...current, [answer.id]: { points: event.target.value, note: current[answer.id]?.note ?? "" } }))} /></label><label>Feedback opcional<input value={reviewDrafts[answer.id]?.note ?? ""} onChange={(event) => setReviewDrafts((current) => ({ ...current, [answer.id]: { points: current[answer.id]?.points ?? "", note: event.target.value } }))} placeholder="Ex.: compreendeu o conceito, mas precisa justificar melhor" /></label><button type="button" disabled={reviewingAnswerId === answer.id} onClick={() => void reviewAnswer(answer.id, question.points)}><Check size={17}/>{reviewingAnswerId === answer.id ? "Salvando..." : reviewed ? "Atualizar avaliação" : "Salvar avaliação"}</button></div>}</article> })}</div></div>)}
       </div>}
     </section>}
     {message && <p className="statusMessage" role="status">{message}</p>}
