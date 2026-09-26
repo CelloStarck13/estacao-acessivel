@@ -70,22 +70,7 @@ const supportOptions = [
   "Comunicação alternativa / aumentativa",
 ];
 
-const barrierOptions = [
-  "Enunciado longo ou ambíguo",
-  "Muitas informações ao mesmo tempo",
-  "Informação apresentada somente por áudio",
-  "Informação apresentada somente por imagem",
-  "Leitura e escrita convencional",
-  "Organização e sequência das etapas",
-  "Atenção e autorregulação",
-  "Comunicação e expressão da resposta",
-  "Precisão motora fina",
-  "Contraste, tamanho ou excesso de elementos",
-];
-
-const communicationOptions = ["Língua Portuguesa escrita", "Libras", "Comunicação oral", "Comunicação alternativa / aumentativa", "Mediação por parceiro de comunicação"];
-
-const responseOptions = ["Seleção", "Arrastar", "Texto", "Áudio", "Desenho", "Imagem", "Código", "Material impresso"];
+const responseOptions = ["Seleção", "Texto"];
 
 const manualYears: Record<string, string[]> = {
   "Tecnologia e Inovação": ["6º ano", "7º ano", "8º ano", "9º ano"],
@@ -114,11 +99,9 @@ export default function NovaAtividadePage() {
   const [manualSchoolYear, setManualSchoolYear] = useState("6º ano");
 
   const [learnerProfiles, setLearnerProfiles] = useState<string[]>([]);
-  const [accessBarriers, setAccessBarriers] = useState<string[]>([]);
   const [supportNeeds, setSupportNeeds] = useState<string[]>([]);
-  const [communicationModes, setCommunicationModes] = useState<string[]>([]);
   const [autonomyLevel, setAutonomyLevel] = useState("moderate");
-  const [responseModes, setResponseModes] = useState<string[]>(["Seleção", "Texto"]);
+  const [responseModes, setResponseModes] = useState<string[]>(["Seleção"]);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -183,6 +166,10 @@ export default function NovaAtividadePage() {
     if (themes.length && !themes.some((item) => item.theme === theme)) setTheme(themes[0].theme);
   }, [themes, theme]);
 
+  useEffect(() => {
+    if (autonomyLevel === "intensive" && responseModes.includes("Texto")) setResponseModes((current) => current.filter((mode) => mode !== "Texto"));
+  }, [autonomyLevel, responseModes]);
+
   const selectedCurriculum = themes.find((item) => item.theme === theme) ?? null;
 
   function toggle(value: string, values: string[], setter: (next: string[]) => void) {
@@ -215,6 +202,10 @@ export default function NovaAtividadePage() {
           setMessage("Selecione componente, ano/série, bimestre e tema para continuar.");
           return;
         }
+        if (!responseModes.length) {
+          setMessage("Selecione pelo menos uma forma de resposta funcional.");
+          return;
+        }
 
         generated = buildGeneratedActivity({
           component,
@@ -223,9 +214,7 @@ export default function NovaAtividadePage() {
           theme,
           curriculumObjective: selectedCurriculum.learning_objective,
           learnerProfiles,
-          accessBarriers,
           supportNeeds,
-          communicationModes,
           autonomyLevel,
           responseModes,
           sourceUnit: {
@@ -257,14 +246,10 @@ export default function NovaAtividadePage() {
           learning_objective: generated.learningObjective,
           delivery_mode: String(form.get("delivery_mode") ?? "digital"),
           learner_profiles: learnerProfiles,
-          access_barriers: accessBarriers,
           support_needs: supportNeeds,
-          communication_modes: communicationModes,
           autonomy_level: autonomyLevel,
           response_modes: responseModes,
           generated_content: generated,
-          personalization_signature: generated.personalizationSignature,
-          generation_status: generated.generationApproved ? "approved" : "blocked",
           status: "draft",
         };
       } else {
@@ -280,9 +265,7 @@ export default function NovaAtividadePage() {
           learning_objective: String(form.get("learning_objective") ?? "").trim() || null,
           delivery_mode: String(form.get("delivery_mode") ?? "digital"),
           learner_profiles: learnerProfiles,
-          access_barriers: accessBarriers,
           support_needs: supportNeeds,
-          communication_modes: communicationModes,
           autonomy_level: autonomyLevel,
           response_modes: responseModes,
           status: "draft",
@@ -313,25 +296,6 @@ export default function NovaAtividadePage() {
         const { error: questionError } = await supabase.from("questions").insert(questionRows);
         if (questionError) {
           setMessage("A atividade foi criada, mas houve erro ao montar as questões.");
-          return;
-        }
-
-        const { data: request, error: requestError } = await supabase.from("generation_requests").insert({
-          activity_id: activity.id,
-          owner_id: user.id,
-          personalization_signature: generated.personalizationSignature,
-          engine_version: "duda-personalization-v1",
-          input_snapshot: { component, schoolYear, term, theme, learnerProfiles, accessBarriers, supportNeeds, communicationModes, autonomyLevel, responseModes, materialKey: selectedCurriculum?.material_key },
-          output_snapshot: { title: generated.title, learningObjective: generated.learningObjective, rules: generated.personalizationRules, questionCount: generated.questions.length },
-          status: generated.generationApproved ? "approved" : "blocked",
-        }).select("id").single();
-        if (requestError || !request) {
-          setMessage("A atividade foi criada, mas o registro de validação não pôde ser salvo.");
-          return;
-        }
-        const { error: checksError } = await supabase.from("generation_checks").insert(generated.validationChecks.map((check) => ({ request_id: request.id, check_key: check.key, passed: check.passed, detail: check.detail })));
-        if (checksError) {
-          setMessage("A atividade foi criada, mas houve erro no registro das verificações.");
           return;
         }
       }
@@ -404,18 +368,8 @@ export default function NovaAtividadePage() {
               </div>
 
               <div className="optionBlock">
-                <h3>Quais barreiras foram observadas na atividade?</h3>
-                <div className="checkGrid">{barrierOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={accessBarriers.includes(value)} onChange={() => toggle(value, accessBarriers, setAccessBarriers)} /><span>{value}</span></label>)}</div>
-              </div>
-
-              <div className="optionBlock">
                 <h3>Quais apoios este estudante necessita?</h3>
                 <div className="checkGrid">{supportOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={supportNeeds.includes(value)} onChange={() => toggle(value, supportNeeds, setSupportNeeds)} /><span>{value}</span></label>)}</div>
-              </div>
-
-              <div className="optionBlock">
-                <h3>Como o estudante se comunica melhor?</h3>
-                <div className="checkGrid">{communicationOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={communicationModes.includes(value)} onChange={() => toggle(value, communicationModes, setCommunicationModes)} /><span>{value}</span></label>)}</div>
               </div>
 
               <div className="activityFormGrid">
@@ -427,7 +381,8 @@ export default function NovaAtividadePage() {
                 </div>
                 <div className="optionBlock compact">
                   <h3>Formas de resposta</h3>
-                  <div className="checkGrid small">{responseOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={responseModes.includes(value)} onChange={() => toggle(value, responseModes, setResponseModes)} /><span>{value}</span></label>)}</div>
+                  <div className="checkGrid small">{responseOptions.map((value) => <label className="checkCard" key={value}><input type="checkbox" checked={responseModes.includes(value)} disabled={value === "Seleção"} onChange={() => toggle(value, responseModes, setResponseModes)} /><span>{value}{value === "Seleção" ? " (obrigatória)" : ""}</span></label>)}</div>
+                  <small>Seleção é a base funcional das atividades. Texto é opcional e removido automaticamente no apoio intenso. Áudio, desenho, imagem, código e arrastar serão liberados somente quando estiverem funcionais.</small>
                 </div>
               </div>
             </section>
