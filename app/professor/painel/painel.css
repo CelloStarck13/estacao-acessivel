@@ -18,5 +18,8 @@
 .metricsGrid>button>span.purple{background:#eee9ff;color:#5534c7}
 .metricsGrid>button div{display:grid;gap:3px}
 .dashboardResults{scroll-margin-top:98px}
+.dashboardCategoryPrompt{min-height:120px;margin-top:16px;border:1px dashed #b7cbe4;border-radius:14px;background:#f8fbff;display:grid;place-items:center;align-content:center;gap:7px;text-align:center;color:#60718d}
+.dashboardCategoryPrompt b{font-size:1.05rem;color:#173b67}
+.dashboardCategoryPrompt span{font-size:.85rem}
 .dashboardError{margin-top:16px;padding:12px 15px;border:1px solid #f0b8b8;border-radius:10px;background:#fff1f1;color:#8f1d1d;font-weight:700}
 .deleteCardButton:disabled{opacity:.45;cursor:wait}

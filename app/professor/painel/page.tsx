@@ -27,7 +27,7 @@ export default function ProfessorDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [loadingAdaptations, setLoadingAdaptations] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<DashboardFilter>("activities");
+  const [activeFilter, setActiveFilter] = useState<DashboardFilter | null>(null);
   const [loadError, setLoadError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -89,8 +89,9 @@ export default function ProfessorDashboard() {
   const activityHeading = activeFilter === "published" ? "Atividades publicadas" : activeFilter === "responses" ? "Atividades com respostas" : "Minhas atividades";
 
   function selectFilter(filter: DashboardFilter) {
-    setActiveFilter(filter);
-    window.requestAnimationFrame(() => document.getElementById("dashboard-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    const nextFilter = activeFilter === filter ? null : filter;
+    setActiveFilter(nextFilter);
+    if (nextFilter) window.requestAnimationFrame(() => document.getElementById("dashboard-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function formatDateTime(value: string) {
@@ -163,7 +164,8 @@ export default function ProfessorDashboard() {
       </div>
       {loadError && <div className="dashboardError" role="alert">{loadError}</div>}
       <div className="metricsGrid" aria-label="Filtros do painel">{metrics.map(([filter,label,value,Icon], index) => <button type="button" key={filter} className={activeFilter === filter ? "activeMetric" : ""} aria-pressed={activeFilter === filter} onClick={() => selectFilter(filter)}><span className={index===3?"purple":""}><Icon /></span><div><small>{label}</small><b>{value}</b></div></button>)}</div>
-      <div id="dashboard-results" className="dashboardResults">
+      {!activeFilter && <div className="dashboardCategoryPrompt"><b>Escolha uma categoria</b><span>Clique em um dos cartões acima para visualizar somente os registros daquela seção.</span></div>}
+      {activeFilter && <div id="dashboard-results" className="dashboardResults">
       {activeFilter !== "adaptations" && <>
       <div className="sectionHeading"><h2>{activityHeading}</h2><span>{filteredActivities.length} encontrada(s){activeFilter === "responses" ? ` • ${responseCount} envio(s)` : ""}</span></div>
       {loadingActivities ? <div className="activityEmpty">Carregando suas atividades...</div> : filteredActivities.length === 0 ? <div className="activityEmpty"><FilePlus2/><h3>{activities.length ? "Nenhuma atividade corresponde à busca." : "Você ainda não criou uma atividade."}</h3>{!activities.length && <Link href="/professor/atividade/nova">Criar primeira atividade</Link>}</div> : <div className="activityGrid">{filteredActivities.map((activity,index) => <article className="activityCard" key={activity.id}>
@@ -172,7 +174,7 @@ export default function ProfessorDashboard() {
       </article>)}</div>}
       </>}
 
-      {(activeFilter === "activities" || activeFilter === "adaptations") && <>
+      {activeFilter === "adaptations" && <>
       <div className="sectionHeading materialHeading"><h2>Materiais adaptados</h2><span>{filteredAdaptations.length} encontrado(s)</span></div>
       {loadingAdaptations ? <div className="activityEmpty">Carregando materiais adaptados...</div> : filteredAdaptations.length === 0 ? <div className="activityEmpty"><FileCode2/><h3>{adaptations.length ? "Nenhum material adaptado corresponde à busca." : "Você ainda não salvou um material adaptado."}</h3>{!adaptations.length && <Link href="/professor/material/adaptar">Adaptar primeiro material</Link>}</div> : <div className="activityGrid adaptationGrid">{filteredAdaptations.map((item,index) => <article className="activityCard adaptationCard" key={item.id}>
         <div className="activityTop"><span className="tag1">Material adaptado</span><div className="cardTopActions"><small>{item.status === "draft" ? "Rascunho" : item.status}</small><button type="button" className="deleteCardButton" disabled={deletingId === item.id} onClick={() => void deleteAdaptation(item.id, item.title)} aria-label={`Excluir ${item.title}`} title="Excluir material adaptado"><Trash2 /></button></div></div>
@@ -193,7 +195,7 @@ export default function ProfessorDashboard() {
         </article>)}
       </section>
       </>}
-      </div>
+      </div>}
     </section>
     <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>DUDA — Estação Acessível • Versão preliminar • Material pedagógico independente</footer></aside>
   </main>;
