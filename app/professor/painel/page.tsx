@@ -62,6 +62,10 @@ export default function ProfessorDashboard() {
   const publishedCount = activities.filter((activity) => activity.status === "published").length;
   const draftCount = activities.length - publishedCount;
   const responseCount = activities.reduce((total, activity) => total + activity.responseCount, 0);
+  const timelineItems = useMemo(() => [
+    ...activities.map((activity) => ({ id: activity.id, title: activity.title, created_at: activity.created_at, kind: "Atividade" as const })),
+    ...adaptations.map((item) => ({ id: item.id, title: item.title, created_at: item.created_at, kind: "Material adaptado" as const })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10), [activities, adaptations]);
   const metrics = [["Atividades", activities.length, FileCheck2], ["Publicadas", publishedCount, Send], ["Materiais adaptados", adaptations.length, FileCode2], ["Respostas recebidas", responseCount, Users]] as const;
 
   function formatDateTime(value: string) {
@@ -141,6 +145,15 @@ export default function ProfessorDashboard() {
         {(item.learner_profiles ?? []).length ? <div className="profileTags">{(item.learner_profiles ?? []).slice(0,3).map((profile) => <span key={profile}>{profile}</span>)}</div> : <p>Sem perfil específico informado.</p>}
         <div className="activityButtons singleAction"><Link href={`/professor/material/adaptado/${item.id}`}>Abrir adaptação</Link></div>
       </article>)}</div>}
+
+      <div className="sectionHeading timelineHeading"><h2>Linha do tempo</h2><span>10 registros mais recentes</span></div>
+      <section className="creationTimeline">
+        {timelineItems.length === 0 ? <p>Nenhuma criação registrada ainda.</p> : timelineItems.map((item) => <article key={`${item.kind}-${item.id}`}>
+          <span className={item.kind === "Atividade" ? "timelineDot activityDot" : "timelineDot adaptationDot"} />
+          <div><b>{item.title}</b><small>{item.kind}</small></div>
+          <time dateTime={item.created_at}>{formatDateTime(item.created_at)}</time>
+        </article>)}
+      </section>
     </section>
     <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>DUDA — Estação Acessível • Versão preliminar • Material pedagógico independente</footer></aside>
   </main>;
