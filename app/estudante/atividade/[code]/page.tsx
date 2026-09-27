@@ -49,6 +49,7 @@ export default function StudentActivityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [finished, setFinished] = useState(false);
+  const [feedbackToken, setFeedbackToken] = useState("");
   const [fontScale, setFontScale] = useState(1);
   const [contrast, setContrast] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -96,19 +97,23 @@ export default function StudentActivityPage() {
       .map((q) => ({ question_id: q.id, answer: answers[q.id] ?? "" }));
 
     const supabase = createBrowserSupabaseClient();
-    const { error: submitError } = await supabase.rpc("submit_activity", {
+    const { data: submitData, error: submitError } = await supabase.rpc("submit_activity", {
       p_access_code: decodeURIComponent(code),
       p_answers: rows,
       p_participant_alias: alias || null,
     });
 
-    if (submitError) setError("Não foi possível enviar. Confira sua conexão e tente novamente.");
-    else setFinished(true);
+    if (submitError || !submitData?.feedback_token) {
+      setError("Não foi possível enviar. Confira sua conexão e tente novamente.");
+    } else {
+      setFeedbackToken(String(submitData.feedback_token));
+      setFinished(true);
+    }
   }
 
   if (loading) return <main className="studentPage"><section className="studentShell"><p>Carregando atividade...</p></section></main>;
   if (error && !activity) return <main className="studentPage"><section className="studentShell errorBox"><h1>Atividade indisponível</h1><p>{error}</p><Link href="/estudante">Digitar outro código</Link></section></main>;
-  if (finished) return <main className="studentPage"><section className="studentShell finishBox"><CheckCircle2 size={64}/><h1>Atividade concluída!</h1><p>Suas respostas foram enviadas ao professor.</p><Link href="/">Concluir</Link></section></main>;
+  if (finished) return <main className="studentPage"><section className="studentShell finishBox"><CheckCircle2 size={64}/><h1>Atividade concluída!</h1><p>Suas respostas foram enviadas ao professor.</p><div className="feedbackProtocol"><span>Protocolo da devolutiva</span><strong>{feedbackToken}</strong><small>Guarde este protocolo junto com o código da atividade. Ele permite consultar sua devolutiva depois da correção.</small></div><Link href={`/estudante/resultado/${encodeURIComponent(feedbackToken)}?codigo=${encodeURIComponent(decodeURIComponent(code))}`}>Ver devolutiva</Link><Link className="finishSecondary" href="/estudante">Concluir</Link></section></main>;
   if (!activity) return null;
 
   const profiles = activity.learner_profiles ?? [];
