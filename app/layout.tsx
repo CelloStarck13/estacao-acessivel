@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import PreferencesBootstrap from "./preferences-bootstrap";
 
 export const metadata: Metadata = {
   title: "DUDA — Estação Acessível",
@@ -12,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{__html:`try{const p=JSON.parse(localStorage.getItem("duda-interface-preferences")||"{}");document.documentElement.classList.toggle("duda-large-text",!!p.largeText);document.documentElement.classList.toggle("duda-high-contrast",!!p.highContrast)}catch(e){}`}} />
       </head>
-      <body>{children}</body>
+      <body><PreferencesBootstrap/>{children}</body>
     </html>
   );
 }
