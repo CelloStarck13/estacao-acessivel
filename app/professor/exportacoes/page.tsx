@@ -15,11 +15,24 @@ type Answer={submission_id:string;question_id:string;answer:unknown;points_award
 function esc(v:unknown){return String(v??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c] as string));}
 function showAnswer(v:unknown){if(v===null||v===undefined||v==="")return"Sem resposta";if(typeof v==="boolean")return v?"Verdadeiro":"Falso";if(typeof v==="string")return v;return JSON.stringify(v);}
 function printWindow(title:string,body:string){
-  const w=window.open("","_blank","noopener,noreferrer");
-  if(!w)return false;
+  const iframe=document.createElement("iframe");
+  iframe.setAttribute("aria-hidden","true");
+  iframe.style.position="fixed";
+  iframe.style.right="0";
+  iframe.style.bottom="0";
+  iframe.style.width="0";
+  iframe.style.height="0";
+  iframe.style.border="0";
+  document.body.appendChild(iframe);
+  const doc=iframe.contentDocument;
+  const win=iframe.contentWindow;
+  if(!doc||!win){iframe.remove();return false;}
   const style="<style>@page{size:A4;margin:16mm}body{font-family:Arial,sans-serif;color:#172033;line-height:1.45}h1{font-size:24px;margin:0 0 6px}h2{font-size:17px;margin:20px 0 8px}.meta{color:#5f6b7a;font-size:12px}.box{border:1px solid #d7dee8;border-radius:8px;padding:12px;margin:10px 0}.q{page-break-inside:avoid;border-top:1px solid #e3e8ef;padding:12px 0}.answer{background:#f5f8fc;padding:8px;border-radius:6px;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccd5e1;padding:6px;vertical-align:top}th{background:#f3f6fa;text-align:left}ul{padding-left:20px}</style>";
-  w.document.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><title>"+esc(title)+"</title>"+style+"</head><body>"+body+"<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>");
-  w.document.close();return true;
+  doc.open();
+  doc.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><title>"+esc(title)+"</title>"+style+"</head><body>"+body+"</body></html>");
+  doc.close();
+  window.setTimeout(()=>{win.focus();win.print();window.setTimeout(()=>iframe.remove(),1000);},250);
+  return true;
 }
 
 export default function ExportacoesPage(){
