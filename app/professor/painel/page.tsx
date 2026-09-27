@@ -157,6 +157,7 @@ export default function ProfessorDashboard() {
       if (label === "Acessibilidade") return <Link href="/professor/acessibilidade" key={label}><Icon />{label}</Link>;
       if (label === "Gabaritos") return <Link href="/professor/gabaritos" key={label}><Icon />{label}</Link>;
       if (label === "Exportações") return <Link href="/professor/exportacoes" key={label}><Icon />{label}</Link>;
+      if (label === "Configurações") return <Link href="/professor/configuracoes" key={label}><Icon />{label}</Link>;
       return <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>;
     })}</nav></aside>
     <section className="dashboardMain">
