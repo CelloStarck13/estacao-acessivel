@@ -3,31 +3,34 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpenCheck, ExternalLink, FileText, Search, Target } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, Search, Target } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 import "./escopo.css";
 
-type SourceDocument = { url: string; label: string; status?: string };
-type PedagogicalUnit = {
-  material_key: string;
+type CurriculumItem = {
+  id: string;
   component: string;
   school_year: string;
   term: string;
-  unit_title: string;
-  domain: string | null;
-  pedagogical_focus: string | null;
-  learning_objectives: string[];
-  core_concepts: string[];
-  authentic_contexts: string[];
-  activity_patterns: string[];
-  assessment_evidence: string[];
-  misconception_alerts: string[];
-  source_documents: SourceDocument[];
-  fidelity_status: string | null;
-  ready_for_generation: boolean;
+  theme: string | null;
+  learning_objective: string | null;
+  skill_reference: string | null;
+  source_reference: string | null;
+  cycle: string | null;
+  week_label: string | null;
+  date_label: string | null;
+  unit: string | null;
+  unit_lesson: string | null;
+  classroom_lesson: string | null;
+  lesson_format: string | null;
+  contents: string | null;
+  skill_text: string | null;
+  knowledge_object: string | null;
+  project_delivery: string | null;
+  skill_codes: string[] | null;
 };
 
-const yearOrder = ["6º ano","7º ano","8º ano","9º ano","1ª série","2ª série","3ª série"];
+const yearOrder = ["6º ano","7º ano","8º ano","9º ano","1ª série EM","2ª série EM","3ª série EM"];
 
 function sortYears(a:string,b:string){
   const ai=yearOrder.indexOf(a), bi=yearOrder.indexOf(b);
@@ -37,15 +40,18 @@ function sortYears(a:string,b:string){
   return ai-bi;
 }
 
+function cleanText(value:string|null){
+  return (value??"").replace(/^[-•●]\s*/gm,"").trim();
+}
+
 export default function EscopoCurricularPage(){
   const router=useRouter();
   const [authorized,setAuthorized]=useState(false);
-  const [units,setUnits]=useState<PedagogicalUnit[]>([]);
+  const [items,setItems]=useState<CurriculumItem[]>([]);
   const [search,setSearch]=useState("");
   const [component,setComponent]=useState("all");
   const [year,setYear]=useState("all");
   const [term,setTerm]=useState("all");
-  const [domain,setDomain]=useState("all");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
 
@@ -54,41 +60,40 @@ export default function EscopoCurricularPage(){
     void supabase.auth.getSession().then(async({data})=>{
       if(!data.session){router.replace("/professor");return;}
       const {data:rows,error:queryError}=await supabase
-        .from("pedagogical_units")
-        .select("material_key,component,school_year,term,unit_title,domain,pedagogical_focus,learning_objectives,core_concepts,authentic_contexts,activity_patterns,assessment_evidence,misconception_alerts,source_documents,fidelity_status,ready_for_generation")
+        .from("curriculum_items")
+        .select("id,component,school_year,term,theme,learning_objective,skill_reference,source_reference,cycle,week_label,date_label,unit,unit_lesson,classroom_lesson,lesson_format,contents,skill_text,knowledge_object,project_delivery,skill_codes")
         .order("component")
         .order("school_year")
-        .order("term");
+        .order("term")
+        .order("theme");
       if(queryError) setError("Não foi possível carregar o escopo curricular.");
-      setUnits((rows??[]) as PedagogicalUnit[]);
+      setItems((rows??[]) as CurriculumItem[]);
       setAuthorized(true);
       setLoading(false);
     });
   },[router]);
 
-  const components=useMemo(()=>Array.from(new Set(units.map(u=>u.component))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[units]);
-  const years=useMemo(()=>Array.from(new Set(units.map(u=>u.school_year))).sort(sortYears),[units]);
-  const terms=useMemo(()=>Array.from(new Set(units.map(u=>u.term))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[units]);
-  const domains=useMemo(()=>Array.from(new Set(units.map(u=>u.domain).filter(Boolean) as string[])).sort((a,b)=>a.localeCompare(b,"pt-BR")),[units]);
+  const components=useMemo(()=>Array.from(new Set(items.map(i=>i.component))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[items]);
+  const years=useMemo(()=>Array.from(new Set(items.map(i=>i.school_year))).sort(sortYears),[items]);
+  const terms=useMemo(()=>Array.from(new Set(items.map(i=>i.term))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[items]);
 
   const filtered=useMemo(()=>{
     const s=search.trim().toLowerCase();
-    return units.filter(u=>{
-      const haystack=`${u.unit_title} ${u.component} ${u.school_year} ${u.term} ${u.domain??""} ${u.pedagogical_focus??""} ${(u.learning_objectives??[]).join(" ")} ${(u.core_concepts??[]).join(" ")}`.toLowerCase();
+    return items.filter(item=>{
+      const haystack=`${item.theme??""} ${item.learning_objective??""} ${item.contents??""} ${item.knowledge_object??""} ${item.skill_reference??""} ${item.skill_text??""} ${item.component} ${item.school_year} ${item.term}`.toLowerCase();
       return (!s||haystack.includes(s)) &&
-        (component==="all"||u.component===component) &&
-        (year==="all"||u.school_year===year) &&
-        (term==="all"||u.term===term) &&
-        (domain==="all"||u.domain===domain);
+        (component==="all"||item.component===component) &&
+        (year==="all"||item.school_year===year) &&
+        (term==="all"||item.term===term);
     });
-  },[units,search,component,year,term,domain]);
+  },[items,search,component,year,term]);
 
   const grouped=useMemo(()=>{
-    const map=new Map<string,PedagogicalUnit[]>();
-    for(const unit of filtered){
-      const key=`${unit.component} • ${unit.school_year}`;
+    const map=new Map<string,CurriculumItem[]>();
+    for(const item of filtered){
+      const key=`${item.component} • ${item.school_year}`;
       const current=map.get(key)??[];
-      current.push(unit);
+      current.push(item);
       map.set(key,current);
     }
     return Array.from(map.entries());
@@ -106,56 +111,61 @@ export default function EscopoCurricularPage(){
       <div>
         <small>DUDA — Estação Acessível</small>
         <h1>Escopo curricular 2026</h1>
-        <p>Consulte unidades, objetivos, conceitos, evidências de aprendizagem e materiais de referência já usados pelo gerador do DUDA.</p>
+        <p>Consulte os temas e objetivos previstos para Tecnologia e Inovação, Programação e Robótica, organizados por ano/série e bimestre.</p>
       </div>
     </section>
 
     <div className="scopeSummary">
-      <strong>{units.length} unidades catalogadas</strong>
-      <span>{components.length} componente(s)</span>
-      <span>{years.length} ano(s)/série(s)</span>
+      <strong>{items.length} registros curriculares</strong>
+      <span>{components.length} componentes</span>
+      <span>{years.length} anos/séries</span>
       <span>{filtered.length} resultado(s)</span>
     </div>
 
     <section className="scopeFilters">
-      <label className="scopeSearch"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar unidade, objetivo, conceito ou tema"/></label>
+      <label className="scopeSearch"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar tema, objetivo, conteúdo ou habilidade"/></label>
       <select value={component} onChange={e=>setComponent(e.target.value)}><option value="all">Componente: todos</option>{components.map(v=><option key={v}>{v}</option>)}</select>
       <select value={year} onChange={e=>setYear(e.target.value)}><option value="all">Ano/série: todos</option>{years.map(v=><option key={v}>{v}</option>)}</select>
       <select value={term} onChange={e=>setTerm(e.target.value)}><option value="all">Bimestre: todos</option>{terms.map(v=><option key={v}>{v}</option>)}</select>
-      <select value={domain} onChange={e=>setDomain(e.target.value)}><option value="all">Domínio: todos</option>{domains.map(v=><option key={v}>{v}</option>)}</select>
     </section>
 
-    {(search||component!=="all"||year!=="all"||term!=="all"||domain!=="all")&&<div className="scopeActive">
-      <span>{filtered.length} unidade(s) encontrada(s)</span>
-      <button type="button" onClick={()=>{setSearch("");setComponent("all");setYear("all");setTerm("all");setDomain("all");}}>Limpar filtros</button>
+    {(search||component!=="all"||year!=="all"||term!=="all")&&<div className="scopeActive">
+      <span>{filtered.length} registro(s) encontrado(s)</span>
+      <button type="button" onClick={()=>{setSearch("");setComponent("all");setYear("all");setTerm("all");}}>Limpar filtros</button>
     </div>}
 
     {error&&<div className="scopeError" role="alert">{error}</div>}
 
-    {loading?<div className="scopeEmpty">Carregando escopo...</div>:filtered.length===0?<div className="scopeEmpty">Nenhuma unidade encontrada com estes filtros.</div>:<section className="scopeGroups">
-      {grouped.map(([group,items])=><details className="scopeGroup" key={group}>
-        <summary><span><strong>{group}</strong><small>{items.length} unidade(s)</small></span><b>Abrir</b></summary>
+    {loading?<div className="scopeEmpty">Carregando escopo...</div>:filtered.length===0?<div className="scopeEmpty">Nenhum registro encontrado com estes filtros.</div>:<section className="scopeGroups">
+      {grouped.map(([group,rows])=><details className="scopeGroup" key={group}>
+        <summary><span><strong>{group}</strong><small>{rows.length} registro(s)</small></span><b>Abrir</b></summary>
         <div className="scopeCards">
-          {items.map(unit=><article className="scopeCard" key={unit.material_key}>
+          {rows.map(item=><article className="scopeCard" key={item.id}>
             <div className="scopeCardTop">
               <div>
-                <span className="termBadge">{unit.term}</span>
-                {unit.domain&&<span className="domainBadge">{unit.domain.replaceAll("_"," ")}</span>}
-                <h2>{unit.unit_title}</h2>
+                <span className="termBadge">{item.term}</span>
+                {item.week_label&&<span className="domainBadge">{item.week_label}</span>}
+                <h2>{item.theme || item.unit || "Registro curricular"}</h2>
               </div>
-              <span className={unit.ready_for_generation?"ready":"pending"}>{unit.ready_for_generation?"Pronta para geração":"Em preparação"}</span>
             </div>
 
-            {unit.pedagogical_focus&&<div className="scopeBlock"><h3><Target size={17}/> Foco pedagógico</h3><p>{unit.pedagogical_focus}</p></div>}
+            {item.learning_objective&&<div className="scopeBlock"><h3><Target size={17}/> Objetivo de aprendizagem</h3><p>{cleanText(item.learning_objective)}</p></div>}
 
-            {(unit.learning_objectives??[]).length>0&&<details className="innerDetails"><summary>Objetivos de aprendizagem ({unit.learning_objectives.length})</summary><ul>{unit.learning_objectives.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
-            {(unit.core_concepts??[]).length>0&&<details className="innerDetails"><summary>Conceitos centrais ({unit.core_concepts.length})</summary><div className="conceptTags">{unit.core_concepts.map((x,i)=><span key={i}>{x}</span>)}</div></details>}
-            {(unit.activity_patterns??[]).length>0&&<details className="innerDetails"><summary>Padrões de atividade ({unit.activity_patterns.length})</summary><ul>{unit.activity_patterns.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
-            {(unit.assessment_evidence??[]).length>0&&<details className="innerDetails"><summary>Evidências de aprendizagem ({unit.assessment_evidence.length})</summary><ul>{unit.assessment_evidence.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
-            {(unit.authentic_contexts??[]).length>0&&<details className="innerDetails"><summary>Contextos autênticos ({unit.authentic_contexts.length})</summary><ul>{unit.authentic_contexts.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
-            {(unit.misconception_alerts??[]).length>0&&<details className="innerDetails warning"><summary>Cuidados pedagógicos ({unit.misconception_alerts.length})</summary><ul>{unit.misconception_alerts.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
-
-            {(unit.source_documents??[]).length>0&&<details className="innerDetails"><summary><FileText size={16}/> Materiais de referência ({unit.source_documents.length})</summary><div className="sourceList">{unit.source_documents.map((doc,i)=><a key={i} href={doc.url} target="_blank" rel="noreferrer"><span>{doc.label}</span><ExternalLink size={15}/></a>)}</div></details>}
+            {item.knowledge_object&&<details className="innerDetails"><summary>Objeto de conhecimento</summary><p>{cleanText(item.knowledge_object)}</p></details>}
+            {item.contents&&<details className="innerDetails"><summary>Conteúdos</summary><p>{cleanText(item.contents)}</p></details>}
+            {(item.skill_reference||item.skill_text||(item.skill_codes??[]).length>0)&&<details className="innerDetails"><summary>Habilidade / referência curricular</summary>
+              {item.skill_reference&&<p><strong>Referência:</strong> {cleanText(item.skill_reference)}</p>}
+              {(item.skill_codes??[]).length>0&&<div className="conceptTags">{item.skill_codes!.map(code=><span key={code}>{code}</span>)}</div>}
+              {item.skill_text&&<p>{cleanText(item.skill_text)}</p>}
+            </details>}
+            {(item.unit||item.unit_lesson||item.classroom_lesson||item.lesson_format)&&<details className="innerDetails"><summary>Organização da aula</summary>
+              {item.unit&&<p><strong>Unidade:</strong> {cleanText(item.unit)}</p>}
+              {item.unit_lesson&&<p><strong>Aula da unidade:</strong> {item.unit_lesson}</p>}
+              {item.classroom_lesson&&<p><strong>Aula:</strong> {item.classroom_lesson}</p>}
+              {item.lesson_format&&<p><strong>Formato:</strong> {item.lesson_format}</p>}
+            </details>}
+            {item.project_delivery&&<details className="innerDetails"><summary>Entrega / projeto</summary><p>{cleanText(item.project_delivery)}</p></details>}
+            {item.source_reference&&<details className="innerDetails"><summary>Fonte curricular</summary><p>{item.source_reference}</p></details>}
           </article>)}
         </div>
       </details>)}
