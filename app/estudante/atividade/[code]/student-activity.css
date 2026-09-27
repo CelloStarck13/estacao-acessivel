@@ -17,3 +17,5 @@
 .highContrast .progressTrack span{background:#ffeb3b}
 .highContrast .secondaryStep{background:#000;color:#fff;border-color:#fff}
 @media(max-width:620px){.stepActions{grid-template-columns:1fr}}
+
+.feedbackProtocol{display:grid;gap:7px;margin:20px 0;padding:16px;border:1px solid #cbd9ea;border-radius:14px;background:#f7faff;text-align:left}.feedbackProtocol span{font-weight:800;color:#536887}.feedbackProtocol strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.95rem;overflow-wrap:anywhere;color:#08234a}.feedbackProtocol small{color:#536887;line-height:1.45}.finishBox{display:grid;gap:12px}.finishBox .finishSecondary{background:#eef4fb;color:#0b4f9c}
