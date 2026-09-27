@@ -15,6 +15,7 @@ type Activity = {
   term: string | null;
   status: string;
   created_at: string;
+  learner_profiles: string[];
 };
 
 type Question = {
@@ -42,7 +43,12 @@ export default function GabaritosPage() {
   const [authorized, setAuthorized] = useState(false);
   const [items, setItems] = useState<AnswerKey[]>([]);
   const [search, setSearch] = useState("");
+  const [yearFilter, setYearFilter] = useState("all");
+  const [componentFilter, setComponentFilter] = useState("all");
+  const [profileFilter, setProfileFilter] = useState("all");
+  const [questionFilter, setQuestionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"grouped" | "all">("grouped");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -57,7 +63,7 @@ export default function GabaritosPage() {
       const userId = data.session.user.id;
       const { data: activities, error: activityError } = await supabase
         .from("activities")
-        .select("id,title,component,school_year,term,status,created_at")
+        .select("id,title,component,school_year,term,status,created_at,learner_profiles")
         .eq("owner_id", userId)
         .order("created_at", { ascending: false });
 
@@ -95,14 +101,40 @@ export default function GabaritosPage() {
     });
   }, [router]);
 
+  const years = useMemo(() => Array.from(new Set(items.map((item) => item.school_year).filter(Boolean) as string[])), [items]);
+  const components = useMemo(() => Array.from(new Set(items.map((item) => item.component).filter(Boolean) as string[])), [items]);
+  const profiles = useMemo(() => Array.from(new Set(items.flatMap((item) => item.learner_profiles ?? []).filter(Boolean))).sort(), [items]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return items.filter((item) => {
-      const matchesText = !term || `${item.title} ${item.component ?? ""} ${item.school_year ?? ""} ${item.term ?? ""}`.toLowerCase().includes(term);
+      const haystack = `${item.title} ${item.component ?? ""} ${item.school_year ?? ""} ${item.term ?? ""} ${(item.learner_profiles ?? []).join(" ")}`.toLowerCase();
+      const objectiveQuestions = item.questions.filter((question) => ["multiple_choice", "true_false"].includes(question.question_type)).length;
+      const openQuestions = item.questions.filter((question) => question.question_type === "open_text").length;
+      const matchesText = !term || haystack.includes(term);
+      const matchesYear = yearFilter === "all" || item.school_year === yearFilter;
+      const matchesComponent = componentFilter === "all" || item.component === componentFilter;
+      const matchesProfile = profileFilter === "all" || (item.learner_profiles ?? []).includes(profileFilter);
+      const matchesQuestionType =
+        questionFilter === "all" ||
+        (questionFilter === "objective" && objectiveQuestions > 0 && openQuestions === 0) ||
+        (questionFilter === "open" && openQuestions > 0 && objectiveQuestions === 0) ||
+        (questionFilter === "mixed" && openQuestions > 0 && objectiveQuestions > 0);
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-      return matchesText && matchesStatus;
+      return matchesText && matchesYear && matchesComponent && matchesProfile && matchesQuestionType && matchesStatus;
     });
-  }, [items, search, statusFilter]);
+  }, [items, search, yearFilter, componentFilter, profileFilter, questionFilter, statusFilter]);
+
+  const groupedByYear = useMemo(() => {
+    const groups = new Map<string, AnswerKey[]>();
+    for (const item of filtered) {
+      const key = item.school_year || "Sem ano/série";
+      const current = groups.get(key) ?? [];
+      current.push(item);
+      groups.set(key, current);
+    }
+    return Array.from(groups.entries());
+  }, [filtered]);
 
   const objectiveCount = items.reduce((total, item) => total + item.questions.filter((question) => ["multiple_choice", "true_false"].includes(question.question_type)).length, 0);
   const openCount = items.reduce((total, item) => total + item.questions.filter((question) => question.question_type === "open_text").length, 0);
@@ -125,43 +157,100 @@ export default function GabaritosPage() {
         <button type="button" onClick={() => window.print()}><Printer size={18}/> Imprimir</button>
       </section>
 
-      <section className="keyMetrics">
-        <article><BookOpen/><div><small>Atividades</small><strong>{items.length}</strong></div></article>
-        <article><CheckCircle2/><div><small>Questões objetivas</small><strong>{objectiveCount}</strong></div></article>
-        <article><FileText/><div><small>Questões abertas</small><strong>{openCount}</strong></div></article>
-      </section>
+      <div className="keySummary">
+        <strong>{items.length} atividades</strong>
+        <span>{objectiveCount} questões objetivas</span>
+        <span>{openCount} questões abertas</span>
+      </div>
 
       <section className="keyTools">
-        <label><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por título, componente ou ano/série"/></label>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">Todas</option>
+        <label className="keySearch"><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar atividade, tema, componente ou perfil"/></label>
+        <select aria-label="Filtrar por ano ou série" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
+          <option value="all">Ano/série: todos</option>
+          {years.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filtrar por componente" value={componentFilter} onChange={(event) => setComponentFilter(event.target.value)}>
+          <option value="all">Componente: todos</option>
+          {components.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filtrar por perfil ou condição" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)}>
+          <option value="all">Perfil/condição: todos</option>
+          {profiles.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filtrar por tipo de questão" value={questionFilter} onChange={(event) => setQuestionFilter(event.target.value)}>
+          <option value="all">Tipo: todos</option>
+          <option value="objective">Somente objetivas</option>
+          <option value="open">Somente abertas</option>
+          <option value="mixed">Mistas</option>
+        </select>
+        <select aria-label="Filtrar por status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">Status: todos</option>
           <option value="published">Publicadas</option>
           <option value="draft">Rascunhos</option>
           <option value="review">Em revisão</option>
         </select>
+        <select aria-label="Modo de visualização" value={viewMode} onChange={(event) => setViewMode(event.target.value as "grouped" | "all")}>
+          <option value="grouped">Agrupar por ano/série</option>
+          <option value="all">Mostrar todas</option>
+        </select>
       </section>
+
+      <div className="filterResultLine">
+        <strong>{filtered.length} atividade(s) encontrada(s)</strong>
+        {(search || yearFilter !== "all" || componentFilter !== "all" || profileFilter !== "all" || questionFilter !== "all" || statusFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setYearFilter("all"); setComponentFilter("all"); setProfileFilter("all"); setQuestionFilter("all"); setStatusFilter("all"); }}>Limpar filtros</button>}
+      </div>
 
       {error && <div className="keyError" role="alert">{error}</div>}
 
-      {loading ? <div className="keyEmpty">Carregando gabaritos...</div> : filtered.length === 0 ? <div className="keyEmpty">Nenhum gabarito encontrado.</div> : <section className="keyList">
-        {filtered.map((item) => <article className="keyCard" key={item.id}>
+      {loading ? <div className="keyEmpty">Carregando gabaritos...</div> : filtered.length === 0 ? <div className="keyEmpty">Nenhum gabarito encontrado.</div> : viewMode === "all" ? <section className="keyList">
+        {filtered.map((item: AnswerKey) => <article className="keyCard" key={item.id}>
           <div className="keyCardTop">
             <div>
               <span className={item.status === "published" ? "published" : "draft"}>{item.status === "published" ? "Publicada" : item.status === "review" ? "Em revisão" : "Rascunho"}</span>
               <h2>{item.title}</h2>
               <small>{[item.school_year, item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
+              {(item.learner_profiles ?? []).length > 0 && <div className="profileTags">{item.learner_profiles.slice(0, 4).map((profile) => <span key={profile}>{profile}</span>)}</div>}
             </div>
             <Link href={`/professor/atividade/${item.id}`}>Abrir atividade</Link>
           </div>
 
-          {item.questions.length === 0 ? <p className="noQuestions">Esta atividade ainda não possui questões.</p> : <div className="keyQuestions">
-            {item.questions.map((question) => <section key={question.id}>
-              <div className="questionTitle"><b>{question.position}</b><strong>{question.prompt}</strong><span>{question.points} ponto(s)</span></div>
-              {question.options?.length > 0 && <ul>{question.options.map((option) => <li key={option} className={String(question.correct_answer) === option ? "correctOption" : ""}>{option}{String(question.correct_answer) === option ? " ✓" : ""}</li>)}</ul>}
-              <div className="answerLine"><span>Gabarito</span><strong>{formatAnswer(question)}</strong></div>
-            </section>)}
-          </div>}
+          {item.questions.length === 0 ? <p className="noQuestions">Esta atividade ainda não possui questões.</p> : <details className="keyDetails">
+            <summary>Ver gabarito • {item.questions.length} questão(ões)</summary>
+            <div className="keyQuestions">
+              {item.questions.map((question) => <section key={question.id}>
+                <div className="questionTitle"><b>{question.position}</b><strong>{question.prompt}</strong><span>{question.points} ponto(s)</span></div>
+                {question.options?.length > 0 && <ul>{question.options.map((option) => <li key={option} className={String(question.correct_answer) === option ? "correctOption" : ""}>{option}{String(question.correct_answer) === option ? " ✓" : ""}</li>)}</ul>}
+                <div className="answerLine"><span>Gabarito</span><strong>{formatAnswer(question)}</strong></div>
+              </section>)}
+            </div>
+          </details>}
         </article>)}
+      </section> : <section className="yearGroups">
+        {groupedByYear.map(([year, activities]) => <details className="yearGroup" key={year}>
+          <summary><span><strong>{year}</strong><small>{activities.length} atividade(s)</small></span><b>Abrir grupo</b></summary>
+          <div className="keyList">{activities.map((item: AnswerKey) => <article className="keyCard" key={item.id}>
+          <div className="keyCardTop">
+            <div>
+              <span className={item.status === "published" ? "published" : "draft"}>{item.status === "published" ? "Publicada" : item.status === "review" ? "Em revisão" : "Rascunho"}</span>
+              <h2>{item.title}</h2>
+              <small>{[item.school_year, item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
+              {(item.learner_profiles ?? []).length > 0 && <div className="profileTags">{item.learner_profiles.slice(0, 4).map((profile) => <span key={profile}>{profile}</span>)}</div>}
+            </div>
+            <Link href={`/professor/atividade/${item.id}`}>Abrir atividade</Link>
+          </div>
+
+          {item.questions.length === 0 ? <p className="noQuestions">Esta atividade ainda não possui questões.</p> : <details className="keyDetails">
+            <summary>Ver gabarito • {item.questions.length} questão(ões)</summary>
+            <div className="keyQuestions">
+              {item.questions.map((question) => <section key={question.id}>
+                <div className="questionTitle"><b>{question.position}</b><strong>{question.prompt}</strong><span>{question.points} ponto(s)</span></div>
+                {question.options?.length > 0 && <ul>{question.options.map((option) => <li key={option} className={String(question.correct_answer) === option ? "correctOption" : ""}>{option}{String(question.correct_answer) === option ? " ✓" : ""}</li>)}</ul>}
+                <div className="answerLine"><span>Gabarito</span><strong>{formatAnswer(question)}</strong></div>
+              </section>)}
+            </div>
+          </details>}
+        </article>)}</div>
+        </details>)}
       </section>}
     </section>
   </main>;
