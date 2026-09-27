@@ -31,6 +31,18 @@ type Question = {
 
 type AnswerKey = Activity & { questions: Question[] };
 
+const canonicalComponents = ["Tecnologia e Inovação", "Programação", "Robótica"];
+const schoolYearOrder = ["6º ano", "7º ano", "8º ano", "9º ano", "1ª série EM", "2ª série EM", "3ª série EM"];
+
+function normalizeSchoolYear(value: string | null) {
+  if (!value) return "Sem ano/série";
+  const normalized = value.trim();
+  if (/^1[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "1ª série EM";
+  if (/^2[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "2ª série EM";
+  if (/^3[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "3ª série EM";
+  return normalized;
+}
+
 function formatAnswer(question: Question) {
   if (question.question_type === "open_text") return "Resposta aberta — correção manual";
   if (question.question_type === "instruction") return "Somente instrução";
@@ -46,7 +58,7 @@ export default function GabaritosPage() {
   const [yearFilter, setYearFilter] = useState("all");
   const [componentFilter, setComponentFilter] = useState("all");
   const [profileFilter, setProfileFilter] = useState("all");
-  const [questionFilter, setQuestionFilter] = useState("all");
+  const [termFilter, setTermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grouped" | "all">("grouped");
   const [loading, setLoading] = useState(true);
@@ -101,34 +113,37 @@ export default function GabaritosPage() {
     });
   }, [router]);
 
-  const years = useMemo(() => Array.from(new Set(items.map((item) => item.school_year).filter(Boolean) as string[])), [items]);
-  const components = useMemo(() => Array.from(new Set(items.map((item) => item.component).filter(Boolean) as string[])), [items]);
-  const profiles = useMemo(() => Array.from(new Set(items.flatMap((item) => item.learner_profiles ?? []).filter(Boolean))).sort(), [items]);
+  const years = useMemo(() => Array.from(new Set(items.map((item) => normalizeSchoolYear(item.school_year))))
+    .sort((a, b) => {
+      const ai = schoolYearOrder.indexOf(a);
+      const bi = schoolYearOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b, "pt-BR");
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    }), [items]);
+  const components = canonicalComponents;
+  const profiles = useMemo(() => Array.from(new Set(items.flatMap((item) => item.learner_profiles ?? []).filter(Boolean))).sort((a,b) => a.localeCompare(b, "pt-BR")), [items]);
+  const terms = useMemo(() => Array.from(new Set(items.map((item) => item.term).filter(Boolean) as string[])).sort((a,b) => a.localeCompare(b, "pt-BR")), [items]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return items.filter((item) => {
       const haystack = `${item.title} ${item.component ?? ""} ${item.school_year ?? ""} ${item.term ?? ""} ${(item.learner_profiles ?? []).join(" ")}`.toLowerCase();
-      const objectiveQuestions = item.questions.filter((question) => ["multiple_choice", "true_false"].includes(question.question_type)).length;
-      const openQuestions = item.questions.filter((question) => question.question_type === "open_text").length;
       const matchesText = !term || haystack.includes(term);
-      const matchesYear = yearFilter === "all" || item.school_year === yearFilter;
+      const matchesYear = yearFilter === "all" || normalizeSchoolYear(item.school_year) === yearFilter;
       const matchesComponent = componentFilter === "all" || item.component === componentFilter;
       const matchesProfile = profileFilter === "all" || (item.learner_profiles ?? []).includes(profileFilter);
-      const matchesQuestionType =
-        questionFilter === "all" ||
-        (questionFilter === "objective" && objectiveQuestions > 0 && openQuestions === 0) ||
-        (questionFilter === "open" && openQuestions > 0 && objectiveQuestions === 0) ||
-        (questionFilter === "mixed" && openQuestions > 0 && objectiveQuestions > 0);
+      const matchesTerm = termFilter === "all" || item.term === termFilter;
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-      return matchesText && matchesYear && matchesComponent && matchesProfile && matchesQuestionType && matchesStatus;
+      return matchesText && matchesYear && matchesComponent && matchesProfile && matchesTerm && matchesStatus;
     });
-  }, [items, search, yearFilter, componentFilter, profileFilter, questionFilter, statusFilter]);
+  }, [items, search, yearFilter, componentFilter, profileFilter, termFilter, statusFilter]);
 
   const groupedByYear = useMemo(() => {
     const groups = new Map<string, AnswerKey[]>();
     for (const item of filtered) {
-      const key = item.school_year || "Sem ano/série";
+      const key = normalizeSchoolYear(item.school_year);
       const current = groups.get(key) ?? [];
       current.push(item);
       groups.set(key, current);
@@ -174,14 +189,12 @@ export default function GabaritosPage() {
           {components.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
         <select aria-label="Filtrar por perfil ou condição" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)}>
-          <option value="all">Perfil/condição: todos</option>
+          <option value="all">Acessibilidade: todos</option>
           {profiles.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
-        <select aria-label="Filtrar por tipo de questão" value={questionFilter} onChange={(event) => setQuestionFilter(event.target.value)}>
-          <option value="all">Tipo: todos</option>
-          <option value="objective">Somente objetivas</option>
-          <option value="open">Somente abertas</option>
-          <option value="mixed">Mistas</option>
+        <select aria-label="Filtrar por bimestre" value={termFilter} onChange={(event) => setTermFilter(event.target.value)}>
+          <option value="all">Bimestre: todos</option>
+          {terms.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
         <select aria-label="Filtrar por status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">Status: todos</option>
@@ -197,8 +210,16 @@ export default function GabaritosPage() {
 
       <div className="filterResultLine">
         <strong>{filtered.length} atividade(s) encontrada(s)</strong>
-        {(search || yearFilter !== "all" || componentFilter !== "all" || profileFilter !== "all" || questionFilter !== "all" || statusFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setYearFilter("all"); setComponentFilter("all"); setProfileFilter("all"); setQuestionFilter("all"); setStatusFilter("all"); }}>Limpar filtros</button>}
+        {(search || yearFilter !== "all" || componentFilter !== "all" || profileFilter !== "all" || termFilter !== "all" || statusFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setYearFilter("all"); setComponentFilter("all"); setProfileFilter("all"); setTermFilter("all"); setStatusFilter("all"); }}>Limpar filtros</button>}
       </div>
+
+      {(yearFilter !== "all" || componentFilter !== "all" || profileFilter !== "all" || termFilter !== "all" || statusFilter !== "all") && <div className="activeFilters" aria-label="Filtros ativos">
+        {yearFilter !== "all" && <span>Ano/série: {yearFilter}</span>}
+        {componentFilter !== "all" && <span>Componente: {componentFilter}</span>}
+        {profileFilter !== "all" && <span>Acessibilidade: {profileFilter}</span>}
+        {termFilter !== "all" && <span>Bimestre: {termFilter}</span>}
+        {statusFilter !== "all" && <span>Status: {statusFilter === "published" ? "Publicadas" : statusFilter === "draft" ? "Rascunhos" : "Em revisão"}</span>}
+      </div>}
 
       {error && <div className="keyError" role="alert">{error}</div>}
 
