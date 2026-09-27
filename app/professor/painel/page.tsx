@@ -153,6 +153,7 @@ export default function ProfessorDashboard() {
       if (label === "Criar atividade") return <Link href="/professor/atividade/nova" key={label}><Icon />{label}</Link>;
       if (label === "Adaptar material") return <Link href="/professor/material/adaptar" key={label}><Icon />{label}</Link>;
       if (label === "Biblioteca") return <Link href="/biblioteca" key={label}><Icon />{label}</Link>;
+      if (label === "Gabaritos") return <Link href="/professor/gabaritos" key={label}><Icon />{label}</Link>;
       return <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>;
     })}</nav></aside>
     <section className="dashboardMain">
