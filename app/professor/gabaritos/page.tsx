@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, CheckCircle2, CheckSquare, FileText, Printer, Search } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
+import { canonicalComponents, normalizeSchoolYear, sortSchoolYears } from "@/lib/curriculum-normalization";
 import "./gabaritos.css";
 
 type Activity = {
@@ -30,18 +31,6 @@ type Question = {
 };
 
 type AnswerKey = Activity & { questions: Question[] };
-
-const canonicalComponents = ["Tecnologia e Inovação", "Programação", "Robótica"];
-const schoolYearOrder = ["6º ano", "7º ano", "8º ano", "9º ano", "1ª série EM", "2ª série EM", "3ª série EM"];
-
-function normalizeSchoolYear(value: string | null) {
-  if (!value) return "Sem ano/série";
-  const normalized = value.trim();
-  if (/^1[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "1ª série EM";
-  if (/^2[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "2ª série EM";
-  if (/^3[ªa]?\s*série(?:\s*EM)?$/i.test(normalized)) return "3ª série EM";
-  return normalized;
-}
 
 function formatAnswer(question: Question) {
   if (question.question_type === "open_text") return "Resposta aberta — correção manual";
@@ -113,15 +102,7 @@ export default function GabaritosPage() {
     });
   }, [router]);
 
-  const years = useMemo(() => Array.from(new Set(items.map((item) => normalizeSchoolYear(item.school_year))))
-    .sort((a, b) => {
-      const ai = schoolYearOrder.indexOf(a);
-      const bi = schoolYearOrder.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b, "pt-BR");
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    }), [items]);
+  const years = useMemo(() => Array.from(new Set(items.map((item) => normalizeSchoolYear(item.school_year)).filter(Boolean))).sort(sortSchoolYears), [items]);
   const components = canonicalComponents;
   const profiles = useMemo(() => Array.from(new Set(items.flatMap((item) => item.learner_profiles ?? []).filter(Boolean))).sort((a,b) => a.localeCompare(b, "pt-BR")), [items]);
   const terms = useMemo(() => Array.from(new Set(items.map((item) => item.term).filter(Boolean) as string[])).sort((a,b) => a.localeCompare(b, "pt-BR")), [items]);
@@ -229,7 +210,7 @@ export default function GabaritosPage() {
             <div>
               <span className={item.status === "published" ? "published" : "draft"}>{item.status === "published" ? "Publicada" : item.status === "review" ? "Em revisão" : "Rascunho"}</span>
               <h2>{item.title}</h2>
-              <small>{[item.school_year, item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
+              <small>{[normalizeSchoolYear(item.school_year), item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
               {(item.learner_profiles ?? []).length > 0 && <div className="profileTags">{item.learner_profiles.slice(0, 4).map((profile) => <span key={profile}>{profile}</span>)}</div>}
             </div>
             <Link href={`/professor/atividade/${item.id}`}>Abrir atividade</Link>
@@ -254,7 +235,7 @@ export default function GabaritosPage() {
             <div>
               <span className={item.status === "published" ? "published" : "draft"}>{item.status === "published" ? "Publicada" : item.status === "review" ? "Em revisão" : "Rascunho"}</span>
               <h2>{item.title}</h2>
-              <small>{[item.school_year, item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
+              <small>{[normalizeSchoolYear(item.school_year), item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
               {(item.learner_profiles ?? []).length > 0 && <div className="profileTags">{item.learner_profiles.slice(0, 4).map((profile) => <span key={profile}>{profile}</span>)}</div>}
             </div>
             <Link href={`/professor/atividade/${item.id}`}>Abrir atividade</Link>
