@@ -235,7 +235,7 @@ export default function GabaritosPage() {
             <div>
               <span className={item.status === "published" ? "published" : "draft"}>{item.status === "published" ? "Publicada" : item.status === "review" ? "Em revisão" : "Rascunho"}</span>
               <h2>{item.title}</h2>
-              <small>{[item.school_year, item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
+              <small>{[normalizeSchoolYear(item.school_year), item.component, item.term].filter(Boolean).join(" • ") || "Atividade personalizada"}</small>
               {(item.learner_profiles ?? []).length > 0 && <div className="profileTags">{item.learner_profiles.slice(0, 4).map((profile) => <span key={profile}>{profile}</span>)}</div>}
             </div>
             <Link href={`/professor/atividade/${item.id}`}>Abrir atividade</Link>
