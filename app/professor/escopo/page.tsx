@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpenCheck, Search, Target } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
+import { canonicalComponents, normalizeSchoolYear, sortSchoolYears } from "@/lib/curriculum-normalization";
 import "./escopo.css";
 
 type CurriculumItem = {
@@ -29,16 +30,6 @@ type CurriculumItem = {
   project_delivery: string | null;
   skill_codes: string[] | null;
 };
-
-const yearOrder = ["6º ano","7º ano","8º ano","9º ano","1ª série EM","2ª série EM","3ª série EM"];
-
-function sortYears(a:string,b:string){
-  const ai=yearOrder.indexOf(a), bi=yearOrder.indexOf(b);
-  if(ai===-1&&bi===-1) return a.localeCompare(b,"pt-BR");
-  if(ai===-1) return 1;
-  if(bi===-1) return -1;
-  return ai-bi;
-}
 
 function cleanText(value:string|null){
   return (value??"").replace(/^[-•●]\s*/gm,"").trim();
@@ -73,8 +64,8 @@ export default function EscopoCurricularPage(){
     });
   },[router]);
 
-  const components=useMemo(()=>Array.from(new Set(items.map(i=>i.component))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[items]);
-  const years=useMemo(()=>Array.from(new Set(items.map(i=>i.school_year))).sort(sortYears),[items]);
+  const components=useMemo(()=>canonicalComponents.filter(value=>items.some(i=>i.component===value)),[items]);
+  const years=useMemo(()=>Array.from(new Set(items.map(i=>normalizeSchoolYear(i.school_year)))).sort(sortSchoolYears),[items]);
   const terms=useMemo(()=>Array.from(new Set(items.map(i=>i.term))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[items]);
 
   const filtered=useMemo(()=>{
@@ -83,7 +74,7 @@ export default function EscopoCurricularPage(){
       const haystack=`${item.theme??""} ${item.learning_objective??""} ${item.contents??""} ${item.knowledge_object??""} ${item.skill_reference??""} ${item.skill_text??""} ${item.component} ${item.school_year} ${item.term}`.toLowerCase();
       return (!s||haystack.includes(s)) &&
         (component==="all"||item.component===component) &&
-        (year==="all"||item.school_year===year) &&
+        (year==="all"||normalizeSchoolYear(item.school_year)===year) &&
         (term==="all"||item.term===term);
     });
   },[items,search,component,year,term]);
@@ -91,7 +82,7 @@ export default function EscopoCurricularPage(){
   const grouped=useMemo(()=>{
     const map=new Map<string,CurriculumItem[]>();
     for(const item of filtered){
-      const key=`${item.component} • ${item.school_year}`;
+      const key=`${item.component} • ${normalizeSchoolYear(item.school_year)}`;
       const current=map.get(key)??[];
       current.push(item);
       map.set(key,current);
