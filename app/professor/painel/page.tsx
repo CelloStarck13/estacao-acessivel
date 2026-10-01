@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import "./painel.css";
 import { Accessibility, Bell, BookOpen, Bot, CalendarClock, CheckSquare, ChevronDown, ChevronRight, CirclePlus, Clock3, FileCheck2, FileCode2, FilePlus2, House, Info, Lightbulb, LogOut, Search, Send, Settings, ShieldCheck, Sparkles, Trash2, Upload, Users } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
+import AssistantModal from "./assistant-modal";
 
 const menu = [
   ["Início", House], ["Criar atividade", CirclePlus], ["Adaptar material", FileCode2],
@@ -30,6 +31,7 @@ export default function ProfessorDashboard() {
   const [activeFilter, setActiveFilter] = useState<DashboardFilter | null>(null);
   const [loadError, setLoadError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -202,6 +204,7 @@ export default function ProfessorDashboard() {
       </>}
       </div>}
     </section>
-    <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>DUDA — Estação Acessível • Versão preliminar • Material pedagógico independente</footer></aside>
+    <aside className="aiSidebar"><div className="aiTitle"><h2>Assistente de IA</h2><ChevronDown /></div><section className="aiCard"><span className="botCircle"><Bot /></span><h3>Assistente conectado</h3><b className="online"><i /> Ativo</b><p>Receba sugestões de atividades, adaptações e objetivos de aprendizagem com base nas suas necessidades.</p><button type="button" onClick={()=>setAssistantOpen(true)}><Sparkles /> Gerar com IA</button><small><Info /> Conteúdo sujeito à revisão do professor.</small></section><section className="tipCard"><Lightbulb /><div><h3>Dica do dia</h3><p>Atividades com exemplos do cotidiano tornam a aprendizagem mais significativa e inclusiva.</p></div></section><footer>DUDA — Estação Acessível • Versão preliminar • Material pedagógico independente</footer></aside>
+    {assistantOpen && <AssistantModal onClose={()=>setAssistantOpen(false)} />}
   </main>;
 }
