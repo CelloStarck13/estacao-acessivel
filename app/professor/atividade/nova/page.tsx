@@ -206,7 +206,7 @@ export default function NovaAtividadePage() {
       setCatalog([...indexedUnits.filter((item) => item.component !== "Robótica"), ...roboticsUnits]);    });
   }, [router]);
 
-  const components = useMemo(() => canonicalComponents.filter((value) => catalog.some((item) => item.component === value)), [catalog]);
+  const components: string[] = useMemo(() => canonicalComponents.filter((value) => catalog.some((item) => item.component === value)), [catalog]);
   const years = useMemo(() => unique(catalog.filter((item) => item.component === component).map((item) => normalizeSchoolYear(item.school_year))).sort(sortSchoolYears), [catalog, component]);
   const terms = useMemo(() => unique(catalog.filter((item) => item.component === component && item.school_year === schoolYear).map((item) => item.term)), [catalog, component, schoolYear]);
   const themes = useMemo(() => catalog.filter((item) => item.component === component && item.school_year === schoolYear && item.term === term), [catalog, component, schoolYear, term]);
