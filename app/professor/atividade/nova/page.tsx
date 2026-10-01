@@ -6,7 +6,7 @@ import { ArrowLeft, PenLine, Save, ShieldCheck, Sparkles, WandSparkles } from "l
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 import { buildGeneratedActivity } from "@/lib/activity-generator";
-import { canonicalComponents, curriculumDomain, normalizeSchoolYear, sortSchoolYears } from "@/lib/curriculum-normalization";
+import { canonicalComponents, normalizeSchoolYear, sortSchoolYears } from "@/lib/curriculum-normalization";
 import "./atividade.css";
 
 type CurriculumItem = {
@@ -129,21 +129,57 @@ export default function NovaAtividadePage() {
         return;
       }
       setAuthorized(true);
-      const { data: items } = await supabase
-        .from("curriculum_items")
-        .select("id,source_key,component,school_year,term,theme,learning_objective,skill_text,knowledge_object,contents,project_delivery,lesson_format,unit_lesson,classroom_lesson,source_reference,source_file,teacher_materials,student_materials")
-        .order("component")
-        .order("school_year")
-        .order("term")
-        .order("theme");
-      setCatalog((items ?? []).map((item) => {
-        const teacherMaterials = (item.teacher_materials ?? []) as Array<{ label: string; url: string }>;
-        const studentMaterials = (item.student_materials ?? []) as Array<{ label: string; url: string }>;
+      const [{ data: unitRows }, { data: roboticsRows }] = await Promise.all([
+        supabase
+          .from("pedagogical_units")
+          .select("material_key,component,school_year,term,unit_title,domain,pedagogical_focus,learning_objectives,core_concepts,authentic_contexts,activity_patterns,assessment_evidence,misconception_alerts,source_documents,fidelity_status,ready_for_generation")
+          .eq("ready_for_generation", true)
+          .order("school_year")
+          .order("term")
+          .order("unit_title"),
+        supabase
+          .from("curriculum_items")
+          .select("id,source_key,component,school_year,term,theme,learning_objective,skill_text,knowledge_object,contents,project_delivery,lesson_format,unit_lesson,classroom_lesson,source_reference,source_file,teacher_materials,student_materials")
+          .eq("component", "Robótica")
+          .order("school_year")
+          .order("term")
+          .order("theme"),
+      ]);
+
+      const indexedUnits = (unitRows ?? []).map((item) => {
+        const documents = (item.source_documents ?? []) as Array<{ label: string; url: string }>;
+        return {
+          id: item.material_key,
+          material_key: item.material_key,
+          component: item.component,
+          school_year: normalizeSchoolYear(item.school_year),
+          term: item.term,
+          theme: item.unit_title,
+          learning_objective: item.learning_objectives?.[0] ?? null,
+          source_status: "official" as const,
+          source_name: "Materiais oficiais SEDUC 2026 — conteúdo extraído",
+          teacher_materials: documents.filter((document) => /professor|guia|gabarito/i.test(document.label)),
+          student_materials: documents.filter((document) => !/professor|guia|gabarito/i.test(document.label)),
+          domain: item.domain,
+          pedagogical_focus: item.pedagogical_focus,
+          learning_objectives: item.learning_objectives ?? [],
+          core_concepts: item.core_concepts ?? [],
+          authentic_contexts: item.authentic_contexts ?? [],
+          activity_patterns: item.activity_patterns ?? [],
+          assessment_evidence: item.assessment_evidence ?? [],
+          misconception_alerts: item.misconception_alerts ?? [],
+          fidelity_status: item.fidelity_status as "extracted" | "reviewed",
+        };
+      }) as CurriculumItem[];
+
+      const roboticsUnits = (roboticsRows ?? []).map((item) => {
+        const teacherMaterials = Array.isArray(item.teacher_materials) ? item.teacher_materials : [];
+        const studentMaterials = Array.isArray(item.student_materials) ? item.student_materials : [];
         const concepts = String(item.contents ?? "")
           .split(/\n|;|•/)
           .map((value) => value.trim())
           .filter(Boolean);
-        return ({
+        return {
           id: item.id,
           material_key: item.source_key ?? item.id,
           component: item.component,
@@ -151,22 +187,23 @@ export default function NovaAtividadePage() {
           term: item.term,
           theme: item.theme,
           learning_objective: item.learning_objective ?? item.skill_text ?? null,
-          source_status: "official",
+          source_status: "official" as const,
           source_name: item.source_reference ?? item.source_file ?? "Escopo e sequência SEDUC 2026",
-          teacher_materials: teacherMaterials,
-          student_materials: studentMaterials,
-          domain: curriculumDomain(item.component),
+          teacher_materials: teacherMaterials as Array<{ label: string; url: string }>,
+          student_materials: studentMaterials as Array<{ label: string; url: string }>,
+          domain: "robotics",
           pedagogical_focus: item.knowledge_object ?? item.contents ?? item.theme,
-          learning_objectives: [item.learning_objective, item.skill_text].filter(Boolean) as string[],
-          core_concepts: concepts.length ? concepts : [item.knowledge_object ?? item.theme].filter(Boolean) as string[],
-          authentic_contexts: [item.project_delivery, item.theme].filter(Boolean) as string[],
-          activity_patterns: [item.lesson_format, item.unit_lesson, item.classroom_lesson].filter(Boolean) as string[],
-          assessment_evidence: [item.project_delivery, item.skill_text].filter(Boolean) as string[],
+          learning_objectives: [item.learning_objective, item.skill_text].filter((value): value is string => Boolean(value)),
+          core_concepts: concepts.length ? concepts : [item.knowledge_object ?? item.theme].filter((value): value is string => Boolean(value)),
+          authentic_contexts: [item.project_delivery, item.theme].filter((value): value is string => Boolean(value)),
+          activity_patterns: [item.lesson_format, item.unit_lesson, item.classroom_lesson].filter((value): value is string => Boolean(value)),
+          assessment_evidence: [item.project_delivery, item.skill_text].filter((value): value is string => Boolean(value)),
           misconception_alerts: [],
-          fidelity_status: "reviewed",
-        });
-      }) as CurriculumItem[]);
-    });
+          fidelity_status: "reviewed" as const,
+        };
+      }) as CurriculumItem[];
+
+      setCatalog([...indexedUnits.filter((item) => item.component !== "Robótica"), ...roboticsUnits]);    });
   }, [router]);
 
   const components = useMemo(() => canonicalComponents.filter((value) => catalog.some((item) => item.component === value)), [catalog]);
